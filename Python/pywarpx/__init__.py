@@ -4,14 +4,5 @@
 #
 # License: BSD-3-Clause-LBNL
 
-from .WarpX import warpx
-from .Constants import my_constants
-from .Amr import amr
-from .Geometry import geometry
-from .Algo import algo
-from .Langmuirwave import langmuirwave
-from .Interpolation import interpolation
-from .Particles import particles, electrons, positrons, protons, newspecies
-from .PSATD import psatd
-from .Lasers import lasers
-from .Diagnostics import diagnostics
+from .Inputs import Inputs
+from .Bucket import Bucket

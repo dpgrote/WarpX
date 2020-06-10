@@ -6,30 +6,25 @@
 
 from .Bucket import Bucket
 
-particles = Bucket('particles', nspecies=0, species_names=[])
-particles_list = []
+class Particles(Bucket):
+    """
+    This keeps a dictionary of the species added.
+    """
+    def __init__(self):
+        Bucket.__init__(self, 'particles', _species_dict={})
 
-electrons = Bucket('electrons')
-electrons.charge = "-q_e"
-electrons.mass = "m_e"
-electrons.injection_style = "python"
+    def new_species(self, name, **defaults):
+        if name is None:
+            name = 'species{}'.format(len(self._species_dict))
+        try:
+            result = self._species_dict[name]
+        except KeyError:
+            result = Bucket(name, **defaults)
+            self._species_dict[name] = result
+            self.nspecies = len(self._species_dict)
+            self.species_names = self._species_dict.keys()
+        return result
 
-positrons = Bucket('positrons')
-positrons.charge = "q_e"
-positrons.mass = "m_e"
-positrons.injection_style = "python"
 
-protons = Bucket('protons')
-protons.charge = "q_e"
-protons.mass = "m_p"
-protons.injection_style = "python"
+particles = Particles()
 
-particle_dict = {'electrons':electrons,
-                 'positrons':positrons,
-                 'protons':protons
-                 }
-
-def newspecies(name):
-    result = Bucket(name)
-    particles_list.append(result)
-    return result

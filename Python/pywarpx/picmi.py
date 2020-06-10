@@ -64,24 +64,16 @@ class Species(picmistandard.PICMI_Species):
                 if self.mass is None:
                     self.mass = element.mass*periodictable.constants.atomic_mass_constant
 
-    def initialize_inputs(self, layout, initialize_self_fields=False):
-        self.species_number = pywarpx.particles.nspecies
-        pywarpx.particles.nspecies += 1
+    def initialize_inputs(self, inputs, layout, initialize_self_fields=False):
 
-        if self.name is None:
-            self.name = 'species{}'.format(self.species_number)
-
-        pywarpx.particles.species_names.append(self.name)
-
-        self.species = pywarpx.Bucket.Bucket(self.name,
-                                             mass = self.mass,
-                                             charge = self.charge,
-                                             injection_style = 'python',
-                                             initialize_self_fields = int(initialize_self_fields))
-        pywarpx.Particles.particles_list.append(self.species)
+        self.species = inputs.particles.new_species(self.name,
+                                                    mass = self.mass,
+                                                    charge = self.charge,
+                                                    injection_style = 'python',
+                                                    initialize_self_fields = int(initialize_self_fields))
 
         if self.initial_distribution is not None:
-            self.initial_distribution.initialize_inputs(self.species_number, layout, self.species, self.density_scale)
+            self.initial_distribution.initialize_inputs(inputs, layout, self.species, self.density_scale)
 
         for interaction in self.interactions:
             assert interaction[0] == 'ionization'
@@ -94,13 +86,13 @@ class Species(picmistandard.PICMI_Species):
 
 picmistandard.PICMI_MultiSpecies.Species_class = Species
 class MultiSpecies(picmistandard.PICMI_MultiSpecies):
-    def initialize_inputs(self, layout, initialize_self_fields=False):
+    def initialize_inputs(self, inputs, layout, initialize_self_fields=False):
         for species in self.species_instances_list:
-            species.initialize_inputs(layout, initialize_self_fields)
+            species.initialize_inputs(inputs, layout, initialize_self_fields)
 
 
 class GaussianBunchDistribution(picmistandard.PICMI_GaussianBunchDistribution):
-    def initialize_inputs(self, species_number, layout, species, density_scale):
+    def initialize_inputs(self, inputs, layout, species, density_scale):
         species.injection_style = "gaussian_beam"
         species.x_m = self.centroid_position[0]
         species.y_m = self.centroid_position[1]
@@ -158,7 +150,7 @@ class GaussianBunchDistribution(picmistandard.PICMI_GaussianBunchDistribution):
 
 
 class UniformDistribution(picmistandard.PICMI_UniformDistribution):
-    def initialize_inputs(self, species_number, layout, species, density_scale):
+    def initialize_inputs(self, inputs, layout, species, density_scale):
 
         if isinstance(layout, GriddedLayout):
             # --- Note that the grid attribute of GriddedLayout is ignored
@@ -204,7 +196,7 @@ class UniformDistribution(picmistandard.PICMI_UniformDistribution):
 
 
 class AnalyticDistribution(picmistandard.PICMI_AnalyticDistribution):
-    def initialize_inputs(self, species_number, layout, species, density_scale):
+    def initialize_inputs(self, inputs, layout, species, density_scale):
 
         if isinstance(layout, GriddedLayout):
             # --- Note that the grid attribute of GriddedLayout is ignored
@@ -231,7 +223,7 @@ class AnalyticDistribution(picmistandard.PICMI_AnalyticDistribution):
             species.__setattr__('density_function(x,y,z)', "{}*({})".format(density_scale, self.density_expression))
 
         for k,v in self.user_defined_kw.items():
-            setattr(pywarpx.my_constants, k, v)
+            setattr(inputs.my_constants, k, v)
 
         # --- Note that WarpX takes gamma*beta as input
         if np.any(np.not_equal(self.momentum_expressions, None)):
@@ -274,7 +266,7 @@ class ParticleListDistribution(picmistandard.PICMI_ParticleListDistribution):
         if len(x) > 1:
             raise Exception('Only a single particle can be loaded')
 
-    def initialize_inputs(self, species_number, layout, species, density_scale):
+    def initialize_inputs(self, inputs, layout, species, density_scale):
 
         species.injection_style = "singleparticle"
         species.single_particle_pos = [self.x[0], self.y[0], self.z[0]]
@@ -304,8 +296,8 @@ class PseudoRandomLayout(picmistandard.PICMI_PseudoRandomLayout):
 
 
 class BinomialSmoother(picmistandard.PICMI_BinomialSmoother):
-    def initialize_inputs(self, solver):
-        pywarpx.warpx.use_filter = 1
+    def initialize_inputs(self, inputs, solver):
+        inputs.warpx.use_filter = 1
         if self.n_pass is None:
             # If not specified, do at least one pass in each direction.
             self.n_pass = 1
@@ -315,7 +307,7 @@ class BinomialSmoother(picmistandard.PICMI_BinomialSmoother):
         except TypeError:
             # If not, make it a vector
             self.n_pass = solver.grid.number_of_dimensions*[self.n_pass]
-        pywarpx.warpx.filter_npass_each_dir = self.n_pass
+        inputs.warpx.filter_npass_each_dir = self.n_pass
 
 
 class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
@@ -325,42 +317,42 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
         self.max_grid_size = kw.pop('warpx_max_grid_size', 32)
         self.blocking_factor = kw.pop('warpx_blocking_factor', None)
 
-    def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+    def initialize_inputs(self, inputs):
+        inputs.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.blocking_factor = self.blocking_factor
+        inputs.amr.max_grid_size = self.max_grid_size
+        inputs.amr.blocking_factor = self.blocking_factor
 
         assert self.lower_bound[0] >= 0., Exception('Lower radial boundary must be >= 0.')
         assert self.bc_rmin != 'periodic' and self.bc_rmax != 'periodic', Exception('Radial boundaries can not be periodic')
 
         # Geometry
-        pywarpx.geometry.coord_sys = 1  # RZ
-        pywarpx.geometry.is_periodic = '0 %d'%(self.bc_zmin=='periodic')  # Is periodic?
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
-        pywarpx.warpx.n_rz_azimuthal_modes = self.n_azimuthal_modes
+        inputs.geometry.coord_sys = 1  # RZ
+        inputs.geometry.is_periodic = '0 %d'%(self.bc_zmin=='periodic')  # Is periodic?
+        inputs.geometry.prob_lo = self.lower_bound  # physical domain
+        inputs.geometry.prob_hi = self.upper_bound
+        inputs.warpx.n_rz_azimuthal_modes = self.n_azimuthal_modes
 
         if self.moving_window_zvelocity is not None:
             if np.isscalar(self.moving_window_zvelocity):
                 if self.moving_window_zvelocity !=0:
-                    pywarpx.warpx.do_moving_window = 1
-                    pywarpx.warpx.moving_window_dir = 'z'
-                    pywarpx.warpx.moving_window_v = self.moving_window_zvelocity/constants.c  # in units of the speed of light
+                    inputs.warpx.do_moving_window = 1
+                    inputs.warpx.moving_window_dir = 'z'
+                    inputs.warpx.moving_window_v = self.moving_window_zvelocity/constants.c  # in units of the speed of light
             else:
                 raise Exception('RZ PICMI moving_window_velocity (only available in z direction) should be a scalar')
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            inputs.amr.max_level = 1
+            inputs.warpx.fine_tag_lo = self.refined_regions[0][1]
+            inputs.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2])
         else:
-            pywarpx.amr.max_level = 0
+            inputs.amr.max_level = 0
 
 
 class Cartesian2DGrid(picmistandard.PICMI_Cartesian2DGrid):
@@ -368,38 +360,38 @@ class Cartesian2DGrid(picmistandard.PICMI_Cartesian2DGrid):
         self.max_grid_size = kw.pop('warpx_max_grid_size', 32)
         self.blocking_factor = kw.pop('warpx_blocking_factor', None)
 
-    def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+    def initialize_inputs(self, inputs):
+        inputs.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.blocking_factor = self.blocking_factor
+        inputs.amr.max_grid_size = self.max_grid_size
+        inputs.amr.blocking_factor = self.blocking_factor
 
         # Geometry
-        pywarpx.geometry.coord_sys = 0  # Cartesian
-        pywarpx.geometry.is_periodic = '%d %d'%(self.bc_xmin=='periodic', self.bc_ymin=='periodic')  # Is periodic?
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        inputs.geometry.coord_sys = 0  # Cartesian
+        inputs.geometry.is_periodic = '%d %d'%(self.bc_xmin=='periodic', self.bc_ymin=='periodic')  # Is periodic?
+        inputs.geometry.prob_lo = self.lower_bound  # physical domain
+        inputs.geometry.prob_hi = self.upper_bound
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            inputs.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'x'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                inputs.warpx.moving_window_dir = 'x'
+                inputs.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[1] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
+                inputs.warpx.moving_window_dir = 'z'
+                inputs.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            inputs.amr.max_level = 1
+            inputs.warpx.fine_tag_lo = self.refined_regions[0][1]
+            inputs.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2])
         else:
-            pywarpx.amr.max_level = 0
+            inputs.amr.max_level = 0
 
 
 class Cartesian3DGrid(picmistandard.PICMI_Cartesian3DGrid):
@@ -407,41 +399,41 @@ class Cartesian3DGrid(picmistandard.PICMI_Cartesian3DGrid):
         self.max_grid_size = kw.pop('warpx_max_grid_size', 32)
         self.blocking_factor = kw.pop('warpx_blocking_factor', None)
 
-    def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+    def initialize_inputs(self, inputs):
+        inputs.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.blocking_factor = self.blocking_factor
+        inputs.amr.max_grid_size = self.max_grid_size
+        inputs.amr.blocking_factor = self.blocking_factor
 
         # Geometry
-        pywarpx.geometry.coord_sys = 0  # Cartesian
-        pywarpx.geometry.is_periodic = '%d %d %d'%(self.bc_xmin=='periodic', self.bc_ymin=='periodic', self.bc_zmin=='periodic')  # Is periodic?
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        inputs.geometry.coord_sys = 0  # Cartesian
+        inputs.geometry.is_periodic = '%d %d %d'%(self.bc_xmin=='periodic', self.bc_ymin=='periodic', self.bc_zmin=='periodic')  # Is periodic?
+        inputs.geometry.prob_lo = self.lower_bound  # physical domain
+        inputs.geometry.prob_hi = self.upper_bound
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            inputs.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'x'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                inputs.warpx.moving_window_dir = 'x'
+                inputs.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[1] != 0.:
-                pywarpx.warpx.moving_window_dir = 'y'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
+                inputs.warpx.moving_window_dir = 'y'
+                inputs.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[2] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[2]/constants.c  # in units of the speed of light
+                inputs.warpx.moving_window_dir = 'z'
+                inputs.warpx.moving_window_v = self.moving_window_velocity[2]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            inputs.amr.max_level = 1
+            inputs.warpx.fine_tag_lo = self.refined_regions[0][1]
+            inputs.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2,2])
         else:
-            pywarpx.amr.max_level = 0
+            inputs.amr.max_level = 0
 
 class ElectromagneticSolver(picmistandard.PICMI_ElectromagneticSolver):
     def init(self, kw):
@@ -455,50 +447,47 @@ class ElectromagneticSolver(picmistandard.PICMI_ElectromagneticSolver):
             self.fftw_plan_measure = kw.pop('warpx_fftw_plan_measure', None)
             self.do_current_correction = kw.pop('warpx_do_current_correction', None)
 
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
 
-        self.grid.initialize_inputs()
+        self.grid.initialize_inputs(inputs)
 
-        pywarpx.warpx.do_pml = self.do_pml
-        pywarpx.warpx.pml_ncell = self.pml_ncell
-        pywarpx.warpx.do_nodal = self.l_nodal
+        inputs.warpx.do_pml = self.do_pml
+        inputs.warpx.pml_ncell = self.pml_ncell
+        inputs.warpx.do_nodal = self.l_nodal
 
         if self.method == 'PSATD':
-            pywarpx.psatd.periodic_single_box_fft = self.periodic_single_box_fft
-            pywarpx.psatd.fftw_plan_measure = self.fftw_plan_measure
-            pywarpx.psatd.do_current_correction = self.do_current_correction
+            inputs.psatd.periodic_single_box_fft = self.periodic_single_box_fft
+            inputs.psatd.fftw_plan_measure = self.fftw_plan_measure
+            inputs.psatd.do_current_correction = self.do_current_correction
 
             if self.stencil_order is not None:
-                pywarpx.psatd.nox = self.stencil_order[0]
-                pywarpx.psatd.noy = self.stencil_order[1]
-                pywarpx.psatd.noz = self.stencil_order[2]
+                inputs.psatd.nox = self.stencil_order[0]
+                inputs.psatd.noy = self.stencil_order[1]
+                inputs.psatd.noz = self.stencil_order[2]
 
             if self.galilean_velocity is not None:
-                pywarpx.psatd.v_galilean = np.array(self.galilean_velocity)/constants.c
+                inputs.psatd.v_galilean = np.array(self.galilean_velocity)/constants.c
 
         else:
             # --- Same method names are used, though mapped to lower case.
-            pywarpx.algo.maxwell_fdtd_solver = self.method
+            inputs.algo.maxwell_fdtd_solver = self.method
 
         if self.cfl is not None:
-            pywarpx.warpx.cfl = self.cfl
+            inputs.warpx.cfl = self.cfl
 
         if self.source_smoother is not None:
-            self.source_smoother.initialize_inputs(self)
+            self.source_smoother.initialize_inputs(inputs, self)
 
 
 class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
         pass
 
 
 class GaussianLaser(picmistandard.PICMI_GaussianLaser):
-    def initialize_inputs(self):
-        self.laser_number = pywarpx.lasers.nlasers + 1
-        if self.name is None:
-            self.name = 'laser{}'.format(self.laser_number)
+    def initialize_inputs(self, inputs):
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = inputs.lasers.new_laser(self.name)
 
         self.laser.profile = "Gaussian"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -512,12 +501,9 @@ class GaussianLaser(picmistandard.PICMI_GaussianLaser):
 
 
 class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
-    def initialize_inputs(self):
-        self.laser_number = pywarpx.lasers.nlasers + 1
-        if self.name is None:
-            self.name = 'laser{}'.format(self.laser_number)
+    def initialize_inputs(self, inputs):
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = inputs.lasers.new_laser(self.name)
 
         self.laser.profile = "parse_field_function"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -526,11 +512,11 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         self.laser.__setattr__('field_function(X,Y,t)', self.field_expression)
 
         for k,v in self.user_defined_kw.items():
-            setattr(pywarpx.my_constants, k, v)
+            setattr(inputs.my_constants, k, v)
 
 
 class LaserAntenna(picmistandard.PICMI_LaserAntenna):
-    def initialize_inputs(self, laser):
+    def initialize_inputs(self, inputs, laser):
         laser.laser.position = self.position  # This point is on the laser plane
         laser.laser.direction = self.normal_vector  # The plane normal direction
         if isinstance(laser, GaussianLaser):
@@ -552,36 +538,32 @@ class Simulation(picmistandard.PICMI_Simulation):
         self.load_balance_with_sfc = kw.pop('warpx_load_balance_with_sfc', None)
         self.use_fdtd_nci_corr = kw.pop('warpx_use_fdtd_nci_corr', None)
 
-        self.inputs_initialized = False
         self.warpx_initialized = False
 
-    def initialize_inputs(self):
-        if self.inputs_initialized:
-            return
+    def create_inputs(self):
+        inputs = pywarpx.Inputs()
 
-        self.inputs_initialized = True
-
-        pywarpx.warpx.verbose = self.verbose
+        inputs.warpx.verbose = self.verbose
         if self.time_step_size is not None:
-            pywarpx.warpx.const_dt = self.timestep
+            inputs.warpx.const_dt = self.timestep
 
         if self.gamma_boost is not None:
-            pywarpx.warpx.gamma_boost = self.gamma_boost
-            pywarpx.warpx.boost_direction = 'z'
+            inputs.warpx.gamma_boost = self.gamma_boost
+            inputs.warpx.boost_direction = 'z'
 
-        pywarpx.algo.current_deposition = self.current_deposition_algo
-        pywarpx.algo.charge_deposition = self.charge_deposition_algo
-        pywarpx.algo.field_gathering = self.field_gathering_algo
-        pywarpx.algo.particle_pusher = self.particle_pusher_algo
+        inputs.algo.current_deposition = self.current_deposition_algo
+        inputs.algo.charge_deposition = self.charge_deposition_algo
+        inputs.algo.field_gathering = self.field_gathering_algo
+        inputs.algo.particle_pusher = self.particle_pusher_algo
 
-        pywarpx.warpx.use_filter = self.use_filter
-        pywarpx.warpx.serialize_ics = self.serialize_ics
+        inputs.warpx.use_filter = self.use_filter
+        inputs.warpx.serialize_ics = self.serialize_ics
 
-        pywarpx.warpx.do_dynamic_scheduling = self.do_dynamic_scheduling
-        pywarpx.warpx.load_balance_int = self.load_balance_int
-        pywarpx.warpx.load_balance_with_sfc = self.load_balance_with_sfc
+        inputs.warpx.do_dynamic_scheduling = self.do_dynamic_scheduling
+        inputs.warpx.load_balance_int = self.load_balance_int
+        inputs.warpx.load_balance_with_sfc = self.load_balance_with_sfc
 
-        pywarpx.particles.use_fdtd_nci_corr = self.use_fdtd_nci_corr
+        inputs.particles.use_fdtd_nci_corr = self.use_fdtd_nci_corr
 
         particle_shape = self.particle_shape
         for s in self.species:
@@ -595,52 +577,49 @@ class Simulation(picmistandard.PICMI_Simulation):
                 interpolation_order = {'NGP':0, 'linear':1, 'quadratic':2, 'cubic':3}[particle_shape]
             else:
                 interpolation_order = particle_shape
-            pywarpx.interpolation.nox = interpolation_order
-            pywarpx.interpolation.noy = interpolation_order
-            pywarpx.interpolation.noz = interpolation_order
+            inputs.interpolation.nox = interpolation_order
+            inputs.interpolation.noy = interpolation_order
+            inputs.interpolation.noz = interpolation_order
 
-        self.solver.initialize_inputs()
+        self.solver.initialize_inputs(inputs)
 
         for i in range(len(self.species)):
-            self.species[i].initialize_inputs(self.layouts[i], self.initialize_self_fields[i])
+            self.species[i].initialize_inputs(inputs, self.layouts[i], self.initialize_self_fields[i])
 
         for i in range(len(self.lasers)):
-            self.lasers[i].initialize_inputs()
-            self.laser_injection_methods[i].initialize_inputs(self.lasers[i])
+            self.lasers[i].initialize_inputs(inputs)
+            self.laser_injection_methods[i].initialize_inputs(inputs, self.lasers[i])
 
         for diagnostic in self.diagnostics:
-            diagnostic.initialize_inputs()
+            diagnostic.initialize_inputs(inputs)
 
-    def initialize_warpx(self):
+        return inputs
+
+    def initialize_warpx(self, inputs):
         if self.warpx_initialized:
             return
 
         self.warpx_initialized = True
-        pywarpx.warpx.init()
+        inputs.warpx.init(inputs)
 
     def write_input_file(self, file_name='inputs'):
-        self.initialize_inputs()
-        kw = {}
-        if self.max_steps is not None:
-            kw['max_step'] = self.max_steps
-        if self.max_time is not None:
-            kw['stop_time'] = self.max_time
-        pywarpx.warpx.write_inputs(file_name, **kw)
+        inputs = self.create_inputs()
+        inputs.write_inputs(file_name, max_step=self.max_steps, stop_time=self.max_time)
 
     def step(self, nsteps=None):
-        self.initialize_inputs()
-        self.initialize_warpx()
+        inputs = self.create_inputs()
+        self.initialize_warpx(inputs)
         if nsteps is None:
             if self.max_steps is not None:
                 nsteps = self.max_steps
             else:
                 nsteps = -1
-        pywarpx.warpx.evolve(nsteps)
+        inputs.warpx.evolve(nsteps)
 
     def finalize(self):
         if self.warpx_initialized:
             self.warpx_initialized = False
-            pywarpx.warpx.finalize()
+            inputs.warpx.finalize()
 
 
 # ----------------------------
@@ -660,18 +639,9 @@ class _WarpX_FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
         self.file_prefix = kw.pop('warpx_file_prefix', None)
         self.dump_rz_modes = kw.pop('warpx_dump_rz_modes', None)
 
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
 
-        name = getattr(self, 'name', None)
-        if name is None:
-            diagnostics_number = len(pywarpx.diagnostics._diagnostics_dict) + 1
-            self.name = 'diag{}'.format(diagnostics_number)
-
-        try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
-        except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+        self.diagnostic = inputs.diagnostics.new_diagnostic(self.name)
 
         self.diagnostic.diag_type = 'Full'
         self.diagnostic.format = self.format
@@ -729,7 +699,7 @@ class _WarpX_FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
 
         if self.write_dir is not None or self.file_prefix is not None:
             write_dir = (self.write_dir or 'diags')
-            file_prefix = (self.file_prefix or self.name)
+            file_prefix = (self.file_prefix or self.diagnostic.instancename)
             self.diagnostic.file_prefix = write_dir + '/' + file_prefix
 
 
@@ -738,11 +708,11 @@ class FieldDiagnostic(_WarpX_FieldDiagnostic, picmistandard.PICMI_FieldDiagnosti
 
 
 class ElectrostaticFieldDiagnostic(_WarpX_FieldDiagnostic, picmistandard.PICMI_ElectrostaticFieldDiagnostic):
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
         if 'phi' in self.data_list:
             # --- phi is not supported by WarpX, but is in the default data_list
             self.data_list.remove('phi')
-        _WarpX_FieldDiagnostic.initialize_inputs(self)
+        _WarpX_FieldDiagnostic.initialize_inputs(self, inputs)
 
 
 class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
@@ -755,18 +725,9 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
         self.uniform_stride = kw.pop('warpx_uniform_stride', None)
         self.plot_filter_function = kw.pop('warpx_plot_filter_function', None)
 
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
 
-        name = getattr(self, 'name', None)
-        if name is None:
-            diagnostics_number = len(pywarpx.diagnostics._diagnostics_dict) + 1
-            self.name = 'diag{}'.format(diagnostics_number)
-
-        try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
-        except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+        self.diagnostic = inputs.diagnostics.new_diagnostic(self.name)
 
         self.diagnostic.diag_type = 'Full'
         self.diagnostic.format = self.format
@@ -807,10 +768,10 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
             species_list = [species]
 
         for specie in species_list:
-            diag = pywarpx.Bucket.Bucket(self.name + '.' + specie.name,
-                                         variables = variables,
-                                         random_fraction = self.random_fraction,
-                                         uniform_stride = self.uniform_stride)
+            diag = pywarpx.Bucket(self.diagnostic.instancename + '.' + specie.name,
+                                  variables = variables,
+                                  random_fraction = self.random_fraction,
+                                  uniform_stride = self.uniform_stride)
             diag.__setattr__('plot_filter_function(t,x,y,z,ux,uy,uz)', self.plot_filter_function)
             self.diagnostic._species_dict[specie.name] = diag
 
@@ -820,27 +781,27 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
 
 
 class LabFrameFieldDiagnostic(picmistandard.PICMI_LabFrameFieldDiagnostic):
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
 
-        pywarpx.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
 
-        pywarpx.warpx.do_back_transformed_diagnostics = 1
-        pywarpx.warpx.num_snapshots_lab = self.num_snapshots
-        pywarpx.warpx.dt_snapshots_lab = self.dt_snapshots
-        pywarpx.warpx.do_back_transformed_fields = 1
-        pywarpx.warpx.lab_data_directory = self.write_dir
+        inputs.warpx.do_back_transformed_diagnostics = 1
+        inputs.warpx.num_snapshots_lab = self.num_snapshots
+        inputs.warpx.dt_snapshots_lab = self.dt_snapshots
+        inputs.warpx.do_back_transformed_fields = 1
+        inputs.warpx.lab_data_directory = self.write_dir
 
 
 class LabFrameParticleDiagnostic(picmistandard.PICMI_LabFrameParticleDiagnostic):
-    def initialize_inputs(self):
+    def initialize_inputs(self, inputs):
 
-        pywarpx.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
+        inputs.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
 
-        pywarpx.warpx.do_back_transformed_diagnostics = 1
+        inputs.warpx.do_back_transformed_diagnostics = 1
 
         if isinstance(self.species, Species):
             self.species.do_back_transformed_diagnostics = 1
@@ -851,6 +812,6 @@ class LabFrameParticleDiagnostic(picmistandard.PICMI_LabFrameParticleDiagnostic)
             except TypeError:
                 pass
 
-        pywarpx.warpx.num_snapshots_lab = self.num_snapshots
-        pywarpx.warpx.dt_snapshots_lab = self.dt_snapshots
-        pywarpx.warpx.lab_data_directory = self.write_dir
+        inputs.warpx.num_snapshots_lab = self.num_snapshots
+        inputs.warpx.dt_snapshots_lab = self.dt_snapshots
+        inputs.warpx.lab_data_directory = self.write_dir

@@ -6,12 +6,23 @@
 
 from .Bucket import Bucket
 
-lasers = Bucket('lasers', nlasers=0, names=[])
-lasers_list = []
+class Lasers(Bucket):
+    """
+    This keeps a dictionary of the lasers added.
+    """
+    def __init__(self):
+        Bucket.__init__(self, 'lasers', _lasers_dict={})
 
-def newlaser(name):
-    result = Bucket(name)
-    lasers_list.append(result)
-    lasers.nlasers += 1
-    lasers.names.append(name)
-    return result
+    def new_laser(self, name):
+        if name is None:
+            name = 'laser{}'.format(len(self._lasers_dict))
+        try:
+            result = self._lasers_dict[name]
+        except KeyError:
+            result = Bucket(name)
+            self._lasers_dict[name] = result
+            self.nlasers = len(self._lasers_dict)
+        return result
+
+lasers = Lasers()
+
