@@ -22,6 +22,7 @@ class Lasers(Bucket):
             result = Bucket(name)
             self._lasers_dict[name] = result
             self.nlasers = len(self._lasers_dict)
+            self.names = self._lasers_dict.keys()
         return result
 
 lasers = Lasers()
