@@ -119,6 +119,10 @@ WarpX::AddSpaceChargeFieldLabFrame ()
         ApplyFilterandSumBoundaryRho (lev, lev, *rho[lev], 0, 1);
     }
 
+    if (average_over_y) {
+        averageRhoOverY( rho );
+    }
+
     // beta is zero in lab frame
     // Todo: use simpler finite difference form with beta=0
     std::array<Real, 3> beta = {0._rt};
@@ -190,7 +194,7 @@ WarpX::computePhi (const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
     }
 }
 
-/* \bried Compute the electric field that corresponds to `phi`, and
+/* \brief Compute the electric field that corresponds to `phi`, and
           add it to the set of MultiFab `E`.
 
    The electric field is calculated by assuming that the source that
@@ -293,7 +297,7 @@ WarpX::computeE (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
 }
 
 
-/* \bried Compute the magnetic field that corresponds to `phi`, and
+/* \brief Compute the magnetic field that corresponds to `phi`, and
           add it to the set of MultiFab `B`.
 
    The magnetic field is calculated by assuming that the source that
@@ -388,6 +392,52 @@ WarpX::computeB (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
                 }
             );
 #endif
+        }
+    }
+}
+
+/* \brief Average the charge density over the y axis.
+          This now assumes that the y axis extends over a single FAB
+          and a single level of refinement.
+
+   \param[inout] Charge density on the grid
+*/
+void
+WarpX::averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) const
+{
+    for (int lev = 0; lev <= max_level; lev++) {
+
+#ifdef _OPENMP
+#    pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for ( MFIter mfi(*rho[lev], false); mfi.isValid(); ++mfi )
+        {
+            const Box& tbx  = mfi.tilebox( rho[lev]->ixType().toIntVect() );
+            const int ny = tbx.length(1);
+
+            const auto& rho_arr = rho[lev]->array(mfi);
+
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j > 0) {
+                        rho_arr(i,0,k) += rho_arr(i,j,k);
+                    }
+                }
+            );
+
+            /* amrex::Gpu::streamSynchronize(); */
+
+            /* This won't work on GPU since it assumes that the loop is executed in order. */
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j == 0) {
+                        rho_arr(i,0,k) /= ny;
+                    } else {
+                        rho_arr(i,j,k) = rho_arr(i,0,k);
+                    }
+                }
+            );
+
         }
     }
 }

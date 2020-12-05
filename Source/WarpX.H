@@ -476,6 +476,7 @@ public:
     // Parameters for lab frame electrostatic
     static amrex::Real self_fields_required_precision;
     static int self_fields_max_iters;
+    static bool average_over_y;
 
     static int do_moving_window;
     static int moving_window_dir;
@@ -529,6 +530,7 @@ public:
     void computeB (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >& B,
                    const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi,
                    std::array<amrex::Real, 3> const beta = {{0,0,0}} ) const;
+    void averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) const;
 
     /**
      * \brief
