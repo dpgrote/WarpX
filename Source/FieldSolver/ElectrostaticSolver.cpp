@@ -10,6 +10,7 @@
 #include <AMReX_MLNodeTensorLaplacian.H>
 
 #include <WarpX.H>
+#include "Utils/WarpXConst.H"
 
 #include <memory>
 
@@ -127,8 +128,17 @@ WarpX::AddSpaceChargeFieldLabFrame ()
     // Todo: use simpler finite difference form with beta=0
     std::array<Real, 3> beta = {0._rt};
 
-    // Compute the potential phi, by solving the Poisson equation
-    computePhi( rho, phi_fp, beta, self_fields_required_precision, self_fields_max_iters );
+    if (do_1d_tridiag) {
+
+        // Compute the potential phi, by solving the Poisson equation
+        computePhiTriDiagonal( rho, phi_fp );
+
+    } else {
+
+        // Compute the potential phi, by solving the Poisson equation
+        computePhi( rho, phi_fp, beta, self_fields_required_precision, self_fields_max_iters );
+
+    }
 
     // Compute the corresponding electric and magnetic field, from the potential phi
     computeE( Efield_fp, phi_fp, beta );
@@ -434,6 +444,86 @@ WarpX::averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) c
                         rho_arr(i,0,k) /= ny;
                     } else {
                         rho_arr(i,j,k) = rho_arr(i,0,k);
+                    }
+                }
+            );
+
+        }
+    }
+}
+
+/* \brief Compute the potential by solving Poisson's equation with
+          a 1D tridiagonal solve.
+          This assumes that the y axis has been averaged over
+          and that the full extent of the x-axis in a single FAB,
+          and a single level of refinement.
+
+   \param[in] rho The charge density a given species
+   \param[out] phi The potential to be computed by this function
+*/
+void
+WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
+                              amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi) const
+{
+    // This loop is here as a stub - the solver won't work with max_level > 0.
+    for (int lev = 0; lev <= max_level; lev++) {
+
+        const amrex::Real* dx = Geom(lev).CellSize();
+        const amrex::Real norm = dx[0]*dx[0]/PhysConst::ep0;
+
+#ifdef _OPENMP
+#    pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for ( MFIter mfi(*rho[lev], false); mfi.isValid(); ++mfi )
+        {
+            const Box& tbx  = mfi.tilebox( rho[lev]->ixType().toIntVect() );
+
+            const int nx = tbx.length(0);
+
+            const auto& rho_arr = rho[lev]->array(mfi);
+            const auto& phi_arr = phi[lev]->array(mfi);
+            const auto& zwork   = phi[lev]->array(mfi);
+
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j == 0 && i > 0 && i < nx) {
+                        phi_arr(i,0,k) = rho_arr(i,0,k)*norm;
+                    }
+                }
+            );
+
+            // set the end points using Dirichlet boundary conditions.
+            phi_arr(1,0,0) += phi_arr(0,0,0);
+            phi_arr(nx-1,0,0) += phi_arr(nx,0,0);
+
+            zwork(nx,1,0) = 2.;
+            phi_arr(1,0,0) = phi_arr(1,0,0)/zwork(nx,1,0);
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j == 0 && i > 1 && i < nx) {
+                        zwork(i,1,k) = -1./zwork(nx,1,k);
+                        zwork(nx,1,k) = 2. - (-1.)*zwork(i,1,k);
+                        phi_arr(i,0,k) = (phi_arr(i,0,k) - (-1.)*phi_arr(i-1,0,k))/zwork(nx,1,k);
+                    }
+                }
+            );
+
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j == 0 && i > 0 && i < nx-1) {
+                        const int im = nx - 1 - i;
+                        phi_arr(im,0,k) = phi_arr(im,0,k) - zwork(im+1,1,k)*phi_arr(im+1,0,k);
+                    }
+                }
+            );
+
+            /* amrex::Gpu::streamSynchronize(); */
+
+            /* This won't work on GPU since it assumes that the loop is executed in order. */
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j > 0) {
+                        phi_arr(i,j,k) = phi_arr(i,0,k);
                     }
                 }
             );

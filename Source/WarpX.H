@@ -477,6 +477,7 @@ public:
     static amrex::Real self_fields_required_precision;
     static int self_fields_max_iters;
     static bool average_over_y;
+    static bool do_1d_tridiag;
 
     static int do_moving_window;
     static int moving_window_dir;
@@ -531,6 +532,8 @@ public:
                    const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi,
                    std::array<amrex::Real, 3> const beta = {{0,0,0}} ) const;
     void averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) const;
+    void computePhiTriDiagonal ( const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
+                                       amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi ) const;
 
     /**
      * \brief
