@@ -6,6 +6,7 @@
  */
 #include "CollisionHandler.H"
 #include "PairWiseCoulombCollision.H"
+#include "ThermalizationCollision.H"
 #include <AMReX_ParmParse.H>
 
 CollisionHandler::CollisionHandler()
@@ -30,6 +31,9 @@ CollisionHandler::CollisionHandler()
 
         if (type == "pairwisecoulomb") {
             allcollisions[i] = std::make_unique<PairWiseCoulombCollision>(collision_names[i]);
+        }
+        else if (type == "thermalization") {
+            allcollisions[i] = std::make_unique<ThermalizationCollision>(collision_names[i]);
         }
 
     }
