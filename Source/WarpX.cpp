@@ -58,11 +58,11 @@ Real WarpX::moving_window_v = std::numeric_limits<amrex::Real>::max();
 bool WarpX::fft_do_time_averaging = false;
 
 Real WarpX::quantum_xi_c2 = PhysConst::xi_c2;
-Real WarpX::gamma_boost = 1.;
-Real WarpX::beta_boost = 0.;
+Real WarpX::gamma_boost = 1._rt;
+Real WarpX::beta_boost = 0._rt;
 Vector<int> WarpX::boost_direction = {0,0,0};
 int WarpX::do_compute_max_step_from_zmax = 0;
-Real WarpX::zmax_plasma_to_compute_max_step = 0.;
+Real WarpX::zmax_plasma_to_compute_max_step = 0._rt;
 
 long WarpX::current_deposition_algo;
 long WarpX::charge_deposition_algo;
@@ -74,8 +74,8 @@ int WarpX::do_dive_cleaning = 0;
 int WarpX::em_solver_medium;
 int WarpX::macroscopic_solver_algo;
 
-long WarpX::n_rz_azimuthal_modes = 1;
-long WarpX::ncomps = 1;
+int WarpX::n_rz_azimuthal_modes = 1;
+int WarpX::ncomps = 1;
 
 long WarpX::nox = 1;
 long WarpX::noy = 1;
@@ -112,12 +112,12 @@ bool WarpX::do_back_transformed_particles = true;
 
 int  WarpX::num_slice_snapshots_lab = 0;
 Real WarpX::dt_slice_snapshots_lab;
-Real WarpX::particle_slice_width_lab = 0.0;
+Real WarpX::particle_slice_width_lab = 0.0_rt;
 
 bool WarpX::do_dynamic_scheduling = true;
 
 int WarpX::do_electrostatic;
-Real WarpX::self_fields_required_precision = 1.e-11;
+Real WarpX::self_fields_required_precision = 1.e-11_rt;
 int WarpX::self_fields_max_iters = 200;
 bool WarpX::average_over_y = false;
 bool WarpX::do_1d_tridiag = false;
@@ -256,38 +256,38 @@ WarpX::WarpX ()
             switch (WarpX::nox)
             {
                 case 1:
-                    costs_heuristic_cells_wt = 0.575;
-                    costs_heuristic_particles_wt = 0.425;
+                    costs_heuristic_cells_wt = 0.575_rt;
+                    costs_heuristic_particles_wt = 0.425_rt;
                     break;
                 case 2:
-                    costs_heuristic_cells_wt = 0.405;
-                    costs_heuristic_particles_wt = 0.595;
+                    costs_heuristic_cells_wt = 0.405_rt;
+                    costs_heuristic_particles_wt = 0.595_rt;
                     break;
                 case 3:
-                    costs_heuristic_cells_wt = 0.250;
-                    costs_heuristic_particles_wt = 0.750;
+                    costs_heuristic_cells_wt = 0.250_rt;
+                    costs_heuristic_particles_wt = 0.750_rt;
                     break;
             }
         } else { // FDTD
             switch (WarpX::nox)
             {
                 case 1:
-                    costs_heuristic_cells_wt = 0.401;
-                    costs_heuristic_particles_wt = 0.599;
+                    costs_heuristic_cells_wt = 0.401_rt;
+                    costs_heuristic_particles_wt = 0.599_rt;
                     break;
                 case 2:
-                    costs_heuristic_cells_wt = 0.268;
-                    costs_heuristic_particles_wt = 0.732;
+                    costs_heuristic_cells_wt = 0.268_rt;
+                    costs_heuristic_particles_wt = 0.732_rt;
                     break;
                 case 3:
-                    costs_heuristic_cells_wt = 0.145;
-                    costs_heuristic_particles_wt = 0.855;
+                    costs_heuristic_cells_wt = 0.145_rt;
+                    costs_heuristic_particles_wt = 0.855_rt;
                     break;
             }
         }
 #else // CPU
-        costs_heuristic_cells_wt = 0.1;
-        costs_heuristic_particles_wt = 0.9;
+        costs_heuristic_cells_wt = 0.1_rt;
+        costs_heuristic_particles_wt = 0.9_rt;
 #endif // AMREX_USE_GPU
     }
 
@@ -538,7 +538,7 @@ WarpX::ReadParameters ()
         int quantum_xi_is_specified = queryWithParser(pp, "quantum_xi", quantum_xi_tmp);
         if (quantum_xi_is_specified) {
             double const quantum_xi = quantum_xi_tmp;
-            quantum_xi_c2 = quantum_xi * PhysConst::c * PhysConst::c;
+            quantum_xi_c2 = static_cast<amrex::Real>(quantum_xi * PhysConst::c * PhysConst::c);
         }
 
         pp.query("do_pml", do_pml);
@@ -694,6 +694,11 @@ WarpX::ReadParameters ()
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE( nox == noy and nox == noz ,
             "warpx.nox, noy and noz must be equal");
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE( nox >= 1, "warpx.nox must >= 1");
+
+        if (maxLevel() > 0 and nox>1 and do_pml_j_damping==1) {
+            amrex::Warning("WARNING: for nox>1, some numerical artifact will be present"
+                           " at coarse-fine interface. nox=1 recommended to avoid this issue");
+        }
     }
 
     if (maxwell_solver_id == MaxwellSolverAlgo::PSATD)
@@ -1096,7 +1101,11 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
     {
         F_fp[lev] = std::make_unique<MultiFab>(amrex::convert(ba,IntVect::TheUnitVector()),dm,ncomps, ngF.max());
     }
+#ifdef WARPX_USE_PSATD
+#   ifndef WARPX_DIM_RZ
     bool const pml_flag_false = false;
+#   endif
+#endif
     if (WarpX::maxwell_solver_id == MaxwellSolverAlgo::PSATD)
     {
         // Allocate and initialize the spectral solver
@@ -1140,13 +1149,12 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
             spectral_solver_fp[lev]->InitFilter(filter_npass_each_dir, use_filter_compensation);
         }
 #   else
-    if ( fft_periodic_single_box == false ) {
-        realspace_ba.grow(ngE); // add guard cells
-    }
-    bool const pml_flag_false=false;
-    spectral_solver_fp[lev] = std::make_unique<SpectralSolver>( realspace_ba, dm,
-        nox_fft, noy_fft, noz_fft, do_nodal, m_v_galilean, m_v_comoving, dx_vect, dt[lev],
-        pml_flag_false, fft_periodic_single_box, update_with_rho, fft_do_time_averaging );
+        if ( fft_periodic_single_box == false ) {
+            realspace_ba.grow(ngE); // add guard cells
+        }
+        spectral_solver_fp[lev] = std::make_unique<SpectralSolver>( realspace_ba, dm,
+            nox_fft, noy_fft, noz_fft, do_nodal, m_v_galilean, m_v_comoving, dx_vect, dt[lev],
+            pml_flag_false, fft_periodic_single_box, update_with_rho, fft_do_time_averaging );
 #   endif
 #endif
     } // MaxwellSolverAlgo::PSATD
@@ -1268,10 +1276,10 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
                 spectral_solver_cp[lev]->InitFilter(filter_npass_each_dir, use_filter_compensation);
             }
 #   else
-        c_realspace_ba.grow(ngE); // add guard cells
-        spectral_solver_cp[lev] = std::make_unique<SpectralSolver>( c_realspace_ba, dm,
-            nox_fft, noy_fft, noz_fft, do_nodal, m_v_galilean, m_v_comoving, cdx_vect, dt[lev],
-            pml_flag_false, fft_periodic_single_box, update_with_rho, fft_do_time_averaging );
+            c_realspace_ba.grow(ngE); // add guard cells
+            spectral_solver_cp[lev] = std::make_unique<SpectralSolver>( c_realspace_ba, dm,
+                nox_fft, noy_fft, noz_fft, do_nodal, m_v_galilean, m_v_comoving, cdx_vect, dt[lev],
+                pml_flag_false, fft_periodic_single_box, update_with_rho, fft_do_time_averaging );
 #   endif
 #endif
         } // MaxwellSolverAlgo::PSATD
