@@ -245,11 +245,12 @@ WarpX::computeE (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
 #else
             const Real inv_dz = 1./dx[1];
 #endif
-            const Box& tbx  = mfi.tilebox( E[lev][0]->ixType().toIntVect() );
+            const amrex::IntVect ng = IntVect(AMREX_D_DECL(1, 1, 1));
+            const Box& tbx  = mfi.tilebox( E[lev][0]->ixType().toIntVect(), ng );
 #if (AMREX_SPACEDIM == 3)
-            const Box& tby  = mfi.tilebox( E[lev][1]->ixType().toIntVect() );
+            const Box& tby  = mfi.tilebox( E[lev][1]->ixType().toIntVect(), ng );
 #endif
-            const Box& tbz  = mfi.tilebox( E[lev][2]->ixType().toIntVect() );
+            const Box& tbz  = mfi.tilebox( E[lev][2]->ixType().toIntVect(), ng );
 
             const auto& phi_arr = phi[lev]->array(mfi);
             const auto& Ex_arr = (*E[lev][0])[mfi].array();
@@ -483,7 +484,7 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
         {
             const Box& tbx  = mfi.tilebox( rho[lev]->ixType().toIntVect() );
 
-            const int nx = tbx.length(0);
+            const int nx = tbx.length(0) - 1;
 
             const auto& rho_arr = rho[lev]->array(mfi);
             const auto& phi_arr = phi[lev]->array(mfi);
@@ -515,9 +516,19 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
 
             amrex::ParallelFor( tbx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                    if (j == 0 && i > 0 && i < nx-1) {
-                        const int im = nx - 1 - i;
-                        phi_arr(im,0,k) = phi_arr(im,0,k) - zwork(im+1,1,k)*phi_arr(im+1,0,k);
+                    const int im = nx - i;
+                    if (j == 0) {
+                        if (im > 0 && im < nx-1) {
+                            phi_arr(im,0,k) = phi_arr(im,0,k) - zwork(im+1,1,k)*phi_arr(im+1,0,k);
+                        }
+                        else if (im == nx-1) {
+                            // Extrapolate assuming Dirichlet boundary
+                            phi_arr(nx+1,0,k) = 2._rt*phi_arr(nx,0,k) - phi_arr(nx-1,0,k);
+                        }
+                        else if (im == 0) {
+                            // Extrapolate assuming Dirichlet boundary
+                            phi_arr(-1,0,k) = 2._rt*phi_arr(0,0,k) - phi_arr(1,0,k);
+                        }
                     }
                 }
             );
@@ -525,7 +536,10 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
             /* amrex::Gpu::streamSynchronize(); */
 
             /* This won't work on GPU since it assumes that the loop is executed in order. */
-            amrex::ParallelFor( tbx,
+            /* Expand the box to include the x guard cells */
+            amrex::Box tbx_guards = tbx;
+            tbx_guards.grow(0,1);
+            amrex::ParallelFor( tbx_guards,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k) {
                     if (j > 0) {
                         phi_arr(i,j,k) = phi_arr(i,0,k);
