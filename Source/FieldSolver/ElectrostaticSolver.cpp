@@ -462,7 +462,6 @@ WarpX::averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) c
 /* \brief Compute the potential by solving Poisson's equation with
           a 1D tridiagonal solve.
           This assumes that the y axis has been averaged over
-          and that the full extent of the x-axis in a single FAB,
           and a single level of refinement.
 
    \param[in] rho The charge density a given species
@@ -472,79 +471,102 @@ void
 WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
                               amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi) const
 {
+
     // This loop is here as a stub - the solver won't work with max_level > 0.
     for (int lev = 0; lev <= max_level; lev++) {
 
         const amrex::Real* dx = Geom(lev).CellSize();
+        const amrex::Real xmin = Geom(lev).ProbLo(0);
+        const amrex::Real xmax = Geom(lev).ProbHi(0);
+        const int nx_total = static_cast<int>( (xmax - xmin)/dx[0] + 0.5_rt );
+
+        // Create a 1-D array that covers all of x. The tridiag solve
+        // will be done in this array and then copied out afterwards.
+        const amrex::IntVect lo_total(-1,0);
+        const amrex::IntVect hi_total(nx_total+1,0);
+        const amrex::Box box_total(lo_total, hi_total);
+        amrex::FArrayBox phi1d(box_total, 1);
+        amrex::FArrayBox zwork(box_total, 1);
+        const auto& phi1d_arr = phi1d.array();
+        const auto& zwork_arr = zwork.array();
+
         const amrex::Real norm = dx[0]*dx[0]/PhysConst::ep0;
 
 #ifdef _OPENMP
 #    pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-        for ( MFIter mfi(*rho[lev], false); mfi.isValid(); ++mfi )
+        for ( MFIter mfi(*rho[lev], true); mfi.isValid(); ++mfi )
         {
-            const Box& tbx  = mfi.tilebox( rho[lev]->ixType().toIntVect() );
-
-            const int nx = tbx.length(0) - 1;
+            // Modify the box to only include j=0 (assuming averaging over y)
+            Box tbx = mfi.tilebox( rho[lev]->ixType().toIntVect() );
+            tbx.setBig(1, tbx.smallEnd(1));
 
             const auto& rho_arr = rho[lev]->array(mfi);
-            const auto& phi_arr = phi[lev]->array(mfi);
-            const auto& zwork   = phi[lev]->array(mfi);
 
+            // Copy rho into phi1d
             amrex::ParallelFor( tbx,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                    if (j == 0 && i > 0 && i < nx) {
-                        phi_arr(i,0,k) = rho_arr(i,0,k)*norm;
-                    }
+                [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
+                    phi1d_arr(i,0,0) = rho_arr(i,0,0)*norm;
                 }
             );
+
+        }
+
 
             // set the end points using Dirichlet boundary conditions.
-            phi_arr(1,0,0) += phi_arr(0,0,0);
-            phi_arr(nx-1,0,0) += phi_arr(nx,0,0);
+            // Force to zero now, later add optional input values
+            phi1d_arr(0,0,0) = 0._rt;
+            phi1d_arr(nx_total,0,0) = 0._rt;
+            phi1d_arr(1,0,0) += phi1d_arr(0,0,0);
+            phi1d_arr(nx_total-1,0,0) += phi1d_arr(nx_total,0,0);
 
-            zwork(nx,1,0) = 2.;
-            phi_arr(1,0,0) = phi_arr(1,0,0)/zwork(nx,1,0);
-            amrex::ParallelFor( tbx,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                    if (j == 0 && i > 1 && i < nx) {
-                        zwork(i,1,k) = -1./zwork(nx,1,k);
-                        zwork(nx,1,k) = 2. - (-1.)*zwork(i,1,k);
-                        phi_arr(i,0,k) = (phi_arr(i,0,k) - (-1.)*phi_arr(i-1,0,k))/zwork(nx,1,k);
+            zwork_arr(nx_total,0,0) = 2._rt;
+            phi1d_arr(1,0,0) = phi1d_arr(1,0,0)/zwork_arr(nx_total,0,0);
+            amrex::ParallelFor( box_total,
+                [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
+                    if (i > 1 && i < nx_total) {
+                        zwork_arr(i,0,0) = -1._rt/zwork_arr(nx_total,0,0);
+                        zwork_arr(nx_total,0,0) = 2._rt - (-1._rt)*zwork_arr(i,0,0);
+                        phi1d_arr(i,0,0) = (phi1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/zwork_arr(nx_total,0,0);
                     }
                 }
             );
 
-            amrex::ParallelFor( tbx,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                    const int im = nx - i;
-                    if (j == 0) {
-                        if (im > 0 && im < nx-1) {
-                            phi_arr(im,0,k) = phi_arr(im,0,k) - zwork(im+1,1,k)*phi_arr(im+1,0,k);
-                        }
-                        else if (im == nx-1) {
-                            // Extrapolate assuming Dirichlet boundary
-                            phi_arr(nx+1,0,k) = 2._rt*phi_arr(nx,0,k) - phi_arr(nx-1,0,k);
-                        }
-                        else if (im == 0) {
-                            // Extrapolate assuming Dirichlet boundary
-                            phi_arr(-1,0,k) = 2._rt*phi_arr(0,0,k) - phi_arr(1,0,k);
-                        }
+            amrex::ParallelFor( box_total,
+                [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
+                    const int im = nx_total - i;
+                    if (im > 0 && im < nx_total-1) {
+                        phi1d_arr(im,0,0) = phi1d_arr(im,0,0) - zwork_arr(im+1,0,0)*phi1d_arr(im+1,0,0);
+                    }
+                    else if (im == nx_total-1) {
+                        // Extrapolate assuming Dirichlet boundary
+                        phi1d_arr(nx_total+1,0,0) = 2._rt*phi1d_arr(nx_total,0,0) - phi1d_arr(nx_total-1,0,0);
+                    }
+                    else if (im == 0) {
+                        // Extrapolate assuming Dirichlet boundary
+                        phi1d_arr(-1,0,0) = 2._rt*phi1d_arr(0,0,0) - phi1d_arr(1,0,0);
                     }
                 }
             );
 
             /* amrex::Gpu::streamSynchronize(); */
 
-            /* This won't work on GPU since it assumes that the loop is executed in order. */
-            /* Expand the box to include the x guard cells */
-            amrex::Box tbx_guards = tbx;
+#ifdef _OPENMP
+#    pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for ( MFIter mfi(*phi[lev], true); mfi.isValid(); ++mfi )
+        {
+            const auto& phi_arr = phi[lev]->array(mfi);
+
+            // Copy the data into the main phi array blocks
+
+            // Expand the box to include the x guard cells
+            amrex::Box tbx_guards = mfi.tilebox( phi[lev]->ixType().toIntVect() );
             tbx_guards.grow(0,1);
+
             amrex::ParallelFor( tbx_guards,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-                    if (j > 0) {
-                        phi_arr(i,j,k) = phi_arr(i,0,k);
-                    }
+                [=] AMREX_GPU_DEVICE (int i, int j, int /* k */) {
+                    phi_arr(i,j,0) = phi1d_arr(i,0,0);
                 }
             );
 
