@@ -482,8 +482,8 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
 
         // Create a 1-D array that covers all of x. The tridiag solve
         // will be done in this array and then copied out afterwards.
-        const amrex::IntVect lo_total(-1,0);
-        const amrex::IntVect hi_total(nx_total+1,0);
+        const amrex::IntVect lo_total(AMREX_D_DECL(-1,0,0));
+        const amrex::IntVect hi_total(AMREX_D_DECL(nx_total+1,0,0));
         const amrex::Box box_total(lo_total, hi_total);
         amrex::FArrayBox phi1d(box_total, 1);
         amrex::FArrayBox zwork(box_total, 1);

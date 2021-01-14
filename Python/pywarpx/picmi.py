@@ -525,6 +525,8 @@ class ElectromagneticSolver(picmistandard.PICMI_ElectromagneticSolver):
 class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
     def init(self, kw):
         self.relativistic = kw.pop('warpx_relativistic', False)
+        self.average_over_y = kw.pop('warpx_average_over_y', None)
+        self.do_1d_tridiag = kw.pop('warpx_do_1d_tridiag', None)
 
     def initialize_inputs(self):
 
@@ -536,6 +538,8 @@ class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
             pywarpx.warpx.do_electrostatic = 'labframe'
             pywarpx.warpx.self_fields_required_precision = self.required_precision
             pywarpx.warpx.self_fields_max_iters = self.maximum_iterations
+            pywarpx.warpx.average_over_y = self.average_over_y
+            pywarpx.warpx.do_1d_tridiag = self.do_1d_tridiag
 
 
 class GaussianLaser(picmistandard.PICMI_GaussianLaser):
