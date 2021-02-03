@@ -52,7 +52,7 @@
 #include <AMReX_Interpolater.H>
 #include <AMReX_FillPatchUtil.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #   include <omp.h>
 #endif
 
@@ -258,14 +258,7 @@ public:
     /** get low-high-low-high-... vector for each direction indicating if mother grid PMLs are enabled */
     std::vector<bool> getPMLdirections() const;
 
-    static amrex::LayoutData<amrex::Real>* getCosts (int lev) {
-        if (m_instance) {
-            return m_instance->costs[lev].get();
-        } else
-        {
-            return nullptr;
-        }
-    }
+    static amrex::LayoutData<amrex::Real>* getCosts (int lev);
 
     static amrex::IntVect filter_npass_each_dir;
     BilinearFilter bilinear_filter;
@@ -377,6 +370,21 @@ public:
     void DampJPML (int lev, PatchType patch_type);
 
     void CopyJPML ();
+
+    /**
+     * \brief Synchronize the nodal points of the PML MultiFabs
+     */
+    void NodalSyncPML ();
+
+    /**
+     * \brief Synchronize the nodal points of the PML MultiFabs for given MR level
+     */
+    void NodalSyncPML (int lev);
+
+    /**
+     * \brief Synchronize the nodal points of the PML MultiFabs for given MR level and patch
+     */
+    void NodalSyncPML (int lev, PatchType patch_type);
 
     PML* GetPML (int lev);
 
@@ -563,6 +571,16 @@ public:
 
     void ApplyFilterandSumBoundaryRho (int lev, int glev, amrex::MultiFab& rho, int icomp, int ncomp);
 
+#ifdef WARPX_USE_PSATD
+    // Host and device vectors for Fornberg stencil coefficients used for finite-order centering
+    amrex::Vector<amrex::Real> host_centering_stencil_coeffs_x;
+    amrex::Vector<amrex::Real> host_centering_stencil_coeffs_y;
+    amrex::Vector<amrex::Real> host_centering_stencil_coeffs_z;
+    amrex::Gpu::DeviceVector<amrex::Real> device_centering_stencil_coeffs_x;
+    amrex::Gpu::DeviceVector<amrex::Real> device_centering_stencil_coeffs_y;
+    amrex::Gpu::DeviceVector<amrex::Real> device_centering_stencil_coeffs_z;
+#endif
+
 protected:
 
     /**
@@ -693,6 +711,9 @@ private:
     void InitDiagnostics ();
 
     void InitNCICorrector ();
+
+    /** Check the requested resources and write performance hints */
+    void PerformanceHints ();
 
     std::unique_ptr<amrex::MultiFab> GetCellCenteredData();
 
@@ -878,6 +899,24 @@ private:
 
     // Domain decomposition on Level 0
     amrex::IntVect numprocs{0};
+
+    //
+    // Embeded Boundary
+    //
+
+    // Factory for field data
+    amrex::Vector<std::unique_ptr<amrex::FabFactory<amrex::FArrayBox> > > m_field_factory;
+
+    amrex::FabFactory<amrex::FArrayBox> const& fieldFactory (int lev) const noexcept {
+        return *m_field_factory[lev];
+    }
+#ifdef AMREX_USE_EB
+    amrex::EBFArrayBoxFactory const& fieldEBFactory (int lev) const noexcept {
+        return static_cast<amrex::EBFArrayBoxFactory const&>(*m_field_factory[lev]);
+    }
+#endif
+
+    void InitEB ();
 
 private:
     // void EvolvePSATD (int numsteps);

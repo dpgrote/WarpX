@@ -28,6 +28,7 @@ class constants:
     m_p = 1.67262192369e-27
     hbar = 1.054571817e-34
 
+picmistandard.register_constants(constants)
 
 class Species(picmistandard.PICMI_Species):
     def init(self, kw):
@@ -774,7 +775,7 @@ class Simulation(picmistandard.PICMI_Simulation):
 # ----------------------------
 
 
-class _WarpX_FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
+class FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
     def init(self, kw):
 
         self.plot_raw_fields = kw.pop('warpx_plot_raw_fields', None)
@@ -862,16 +863,7 @@ class _WarpX_FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
             self.diagnostic.file_prefix = write_dir + '/' + file_prefix
 
 
-class FieldDiagnostic(_WarpX_FieldDiagnostic, picmistandard.PICMI_FieldDiagnostic):
-    pass
-
-
-class ElectrostaticFieldDiagnostic(_WarpX_FieldDiagnostic, picmistandard.PICMI_ElectrostaticFieldDiagnostic):
-    def initialize_inputs(self):
-        if 'phi' in self.data_list:
-            # --- phi is not supported by WarpX, but is in the default data_list
-            self.data_list.remove('phi')
-        _WarpX_FieldDiagnostic.initialize_inputs(self)
+ElectrostaticFieldDiagnostic = FieldDiagnostic
 
 
 class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):

@@ -63,7 +63,7 @@ WarpX::AddSpaceChargeField (WarpXParticleContainer& pc)
     Vector<std::unique_ptr<MultiFab> > rho(num_levels);
     Vector<std::unique_ptr<MultiFab> > phi(num_levels);
     // Use number of guard cells used for local deposition of rho
-    const int ng = guard_cells.ng_depos_rho.max();
+    const amrex::IntVect ng = guard_cells.ng_depos_rho;
     for (int lev = 0; lev <= max_level; lev++) {
         BoxArray nba = boxArray(lev);
         nba.surroundingNodes();
@@ -105,7 +105,7 @@ WarpX::AddSpaceChargeFieldLabFrame ()
     const int num_levels = max_level + 1;
     Vector<std::unique_ptr<MultiFab> > rho(num_levels);
     // Use number of guard cells used for local deposition of rho
-    const int ng = guard_cells.ng_depos_rho.max();
+    const amrex::IntVect ng = guard_cells.ng_depos_rho;
     for (int lev = 0; lev <= max_level; lev++) {
         BoxArray nba = boxArray(lev);
         nba.surroundingNodes();
@@ -234,7 +234,7 @@ WarpX::computeE (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
 
         const Real* dx = Geom(lev).CellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #    pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
         for ( MFIter mfi(*phi[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi )
@@ -337,7 +337,7 @@ WarpX::computeB (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
 
         const Real* dx = Geom(lev).CellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #    pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
         for ( MFIter mfi(*phi[lev], TilingIfNotGPU()); mfi.isValid(); ++mfi )
