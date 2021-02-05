@@ -183,6 +183,8 @@ WarpX::Evolve (int numsteps)
 
         int num_moved = MoveWindow(move_j);
 
+        mypc->ReplenishPlasma();
+
         mypc->ApplyBoundaryConditions();
 
         // Electrostatic solver: particles can move by an arbitrary number of cells

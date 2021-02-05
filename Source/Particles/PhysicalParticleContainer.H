@@ -328,9 +328,10 @@ public:
     PairGenerationFilterFunc getPairGenerationFilterFunc ();
 #endif
 
+    std::unique_ptr<PlasmaInjector> plasma_injector;
+
 protected:
     std::string species_name;
-    std::unique_ptr<PlasmaInjector> plasma_injector;
 
     // When true, adjust the transverse particle positions accounting
     // for the difference between the Lorentz transformed time of the

@@ -235,6 +235,33 @@ MultiParticleContainer::ReadParameters ()
                 }
             }
 
+            // Get species for replenishing
+            std::vector<std::string> replenish_species;
+            pp.queryarr("replenish_species", replenish_species);
+            if (!replenish_species.empty()) {
+                for (auto const& name : replenish_species) {
+                    auto it = std::find(species_names.begin(), species_names.end(), name);
+                    WarpXUtilMsg::AlwaysAssert(
+                        it != species_names.end(),
+                        "ERROR: species '" + name
+                        + "' in particles.replenish_species must be part of particles.species_names"
+                    );
+                    int i = std::distance(species_names.begin(), it);
+                    m_species_to_replenish.push_back(i);
+                }
+
+                replenish_xmin = std::numeric_limits<amrex::Real>::lowest();
+                replenish_xmax = std::numeric_limits<amrex::Real>::max();
+                std::vector<amrex::Real> replenish_range;
+                pp.queryarr("replenish_range", replenish_range);
+                if (replenish_range.size() > 0) {
+                    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(replenish_range.size() == 2,
+                                                     "Error: replenish_range must be min and max");
+                    replenish_xmin = replenish_range[0];
+                    replenish_xmax = replenish_range[1];
+                }
+            }
+
         }
         pp.query("use_fdtd_nci_corr", WarpX::use_fdtd_nci_corr);
 #ifdef WARPX_DIM_RZ
@@ -309,6 +336,10 @@ MultiParticleContainer::InitData ()
     InitQED();
 #endif
 
+    if (m_species_to_replenish.size() > 0) {
+        auto const& pc = allcontainers[m_species_to_replenish[0]];
+        m_total_number_of_particles_for_replenishing = pc->TotalNumberOfParticles();
+    }
 }
 
 void
@@ -601,6 +632,198 @@ MultiParticleContainer::doContinuousInjection () const
         }
     }
     return warpx_do_continuous_injection;
+}
+
+void
+MultiParticleContainer::ReplenishPlasma ()
+{
+    WARPX_PROFILE("MultiParticleContainer::ReplenishPlasma()");
+    if (m_species_to_replenish.size() == 0) {
+        return;
+    }
+
+    const int lev = 0;
+
+    auto const& warpx = WarpX::GetInstance();
+
+    using ParticleType = WarpXParticleContainer::ParticleType;
+
+    const Geometry& geom = warpx.Geom(lev);
+    amrex::RealBox domain_realbox = WarpX::getRealBox(geom.Domain(), lev);
+    domain_realbox.setLo(0, std::max(replenish_xmin, domain_realbox.lo(0)));
+    domain_realbox.setHi(0, std::min(replenish_xmax, domain_realbox.hi(0)));
+    const amrex::Real domain_volume = domain_realbox.volume();
+
+    // Parameters are based off of the first species in the list,
+    // which is the one whose number will be kept fixed.
+    PhysicalParticleContainer * pc = dynamic_cast<PhysicalParticleContainer *>(allcontainers[m_species_to_replenish[0]].get());
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(pc, "ERROR: Replenished species must be PhysicalParticleContainer");
+
+    const int num_ppc = pc->plasma_injector->num_particles_per_cell;
+    const auto dx = geom.CellSizeArray();
+    amrex::Real scale_fac;
+#if AMREX_SPACEDIM==3
+    scale_fac = dx[0]*dx[1]*dx[2]/num_ppc;
+#elif AMREX_SPACEDIM==2
+    scale_fac = dx[0]*dx[1]/num_ppc;
+#endif
+
+    const long totalnumberofparticles = pc->TotalNumberOfParticles();
+    const long particles_lost = m_total_number_of_particles_for_replenishing - totalnumberofparticles;
+    std::cout << "Adding " << particles_lost << " particles\n";
+    if (particles_lost <= 0) return;
+
+    InjectorDensity* inj_rho = pc->plasma_injector->getInjectorDensity();
+    Real density_min = pc->plasma_injector->density_min;
+    Real density_max = pc->plasma_injector->density_max;
+
+    amrex::RandomEngine const& engine{};
+
+    pc->defineAllParticleTiles();
+
+    MFItInfo info;
+    if (pc->do_tiling && Gpu::notInLaunchRegion()) {
+        info.EnableTiling(pc->tile_size);
+    }
+#ifdef _OPENMP
+    info.SetDynamic(true);
+#pragma omp parallel if (not WarpX::serialize_ics)
+#endif
+    for (MFIter mfi = pc->MakeMFIter(lev, info); mfi.isValid(); ++mfi)
+    {
+
+        const amrex::Box& tile_box = mfi.tilebox();
+        amrex::RealBox tile_realbox = WarpX::getRealBox(tile_box, lev);
+        tile_realbox.setLo(0, std::max(replenish_xmin, tile_realbox.lo(0)));
+        tile_realbox.setHi(0, std::min(replenish_xmax, tile_realbox.hi(0)));
+        const amrex::Real tile_xmin = tile_realbox.lo(0);
+        const amrex::Real tile_xmax = tile_realbox.hi(0);
+        const amrex::Real tile_ymin = tile_realbox.lo(1);
+        const amrex::Real tile_ymax = tile_realbox.hi(1);
+        const amrex::Real tile_volume = tile_realbox.volume();
+        if (tile_xmax <= tile_xmin) continue;
+
+        int n_new_particles = static_cast<int>(particles_lost*tile_volume/domain_volume + amrex::Random(engine));
+        if (n_new_particles == 0) continue;
+
+        // Declare temporary vectors on the CPU
+        // The positions and weight are the same for all replenished species
+        Gpu::HostVector<ParticleReal> particle_x;
+        Gpu::HostVector<ParticleReal> particle_y;
+        Gpu::HostVector<ParticleReal> particle_z;
+        Gpu::HostVector<ParticleReal> particle_w;
+
+        for (long i=0 ; i < n_new_particles ; i++) {
+
+            amrex::Real pos_x = tile_xmin + amrex::Random(engine)*(tile_xmax - tile_xmin);
+            amrex::Real pos_y = tile_ymin + amrex::Random(engine)*(tile_ymax - tile_ymin);
+            amrex::Real pos_z = 0._rt;
+
+            amrex::Real dens = inj_rho->getDensity(pos_x, pos_y, pos_z);
+
+            // Cut density if above threshold
+            dens = amrex::min(dens, density_max);
+
+            if (dens < density_min) {
+                continue;
+            }
+
+            amrex::Real weight = dens * scale_fac;
+
+#if (AMREX_SPACEDIM == 3)
+            particle_x.push_back(pos_x);
+            particle_y.push_back(pos_y);
+            particle_z.push_back(pos_z);
+#elif (AMREX_SPACEDIM == 2)
+            particle_x.push_back(pos_x);
+            particle_y.push_back(0.);
+            particle_z.push_back(pos_y);
+#endif
+
+            particle_w.push_back(weight);
+
+        }
+
+        // In case any particles where skipped because the density was too low
+        n_new_particles = particle_x.size();
+
+        const int grid_id = mfi.index();
+        const int tile_id = mfi.LocalTileIndex();
+
+        for (auto ir : m_species_to_replenish) {
+            PhysicalParticleContainer * pc_r = dynamic_cast<PhysicalParticleContainer *>(allcontainers[ir].get());
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(pc_r, "ERROR: Replenished species must be PhysicalParticleContainer");
+
+            InjectorMomentum* inj_mom = pc_r->plasma_injector->getInjectorMomentum();
+
+            // Update NextID to include particles created in this function
+            Long pid;
+#ifdef AMREX_USE_OMP
+#pragma omp critical (add_plasma_nextid)
+#endif
+            {
+                pid = ParticleType::NextID();
+                ParticleType::NextID(pid + n_new_particles);
+            }
+
+            const int cpuid = ParallelDescriptor::MyProc();
+
+            auto& particle_tile = pc_r->GetParticles(lev)[std::make_pair(grid_id,tile_id)];
+
+            if ( (pc_r->NumRuntimeRealComps()>0) || (pc_r->NumRuntimeIntComps()>0) ) {
+                pc_r->DefineAndReturnParticleTile(lev, grid_id, tile_id);
+            }
+
+            auto old_size = particle_tile.GetArrayOfStructs().size();
+            auto new_size = old_size + n_new_particles;
+            particle_tile.resize(new_size);
+
+            ParticleType* pp = particle_tile.GetArrayOfStructs()().data() + old_size;
+            auto& soa = particle_tile.GetStructOfArrays();
+            GpuArray<ParticleReal*,PIdx::nattribs> pa;
+            for (int ia = 0; ia < PIdx::nattribs; ++ia) {
+                pa[ia] = soa.GetRealData(ia).data() + old_size;
+            }
+
+            // Loop over all new particles and inject them
+            for (long ip=0 ; ip < n_new_particles ; ip++) {
+
+#if (AMREX_SPACEDIM == 3)
+                amrex::Real pos_x = particle_x[ip];
+                amrex::Real pos_y = particle_y[ip];
+                amrex::Real pos_z = particle_z[ip];
+#elif (AMREX_SPACEDIM == 2)
+                amrex::Real pos_x = particle_x[ip];
+                amrex::Real pos_y = particle_z[ip];
+                amrex::Real pos_z = 0.;
+#endif
+                amrex::XDim3 u = inj_mom->getMomentum(pos_x, pos_y, pos_z, engine);
+
+                ParticleType& p = pp[ip];
+                p.id() = pid + ip;
+                p.cpu() = cpuid;
+
+                pa[PIdx::w ][ip] = particle_w[ip];
+                pa[PIdx::ux][ip] = u.x*PhysConst::c;
+                pa[PIdx::uy][ip] = u.y*PhysConst::c;
+                pa[PIdx::uz][ip] = u.z*PhysConst::c;
+
+                p.pos(0) = pos_x;
+                p.pos(1) = pos_y;
+#if (AMREX_SPACEDIM == 3)
+                p.pos(2) = pos_z;
+#endif
+
+            }
+
+            amrex::Gpu::synchronize();
+
+        }
+
+    }
+
+    /* Redistribute(); // Not needed since will be done afterwards in main loop. */
+
 }
 
 /* \brief Get ID of product species of each species.

@@ -233,6 +233,11 @@ public:
     void UpdateContinuousInjectionPosition(amrex::Real dt) const;
     int doContinuousInjection() const;
 
+    void ReplenishPlasma ();
+    amrex::Real replenish_xmin, replenish_xmax;
+    std::vector<int> m_species_to_replenish;
+    int m_total_number_of_particles_for_replenishing;
+
     std::vector<std::string> GetSpeciesNames() const { return species_names; }
 
     PhysicalParticleContainer& GetPCtmp () { return *pc_tmp; }
