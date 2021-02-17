@@ -246,7 +246,12 @@ WarpX::computeE (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
 #else
             const Real inv_dz = 1._rt/dx[1];
 #endif
-            const amrex::IntVect ng = IntVect(AMREX_D_DECL(1, 1, 1));
+            amrex::IntVect ng = IntVect(AMREX_D_DECL(0, 0, 0));
+            if (do_1d_tridiag) {
+                // The tridiag solver properly handles the guard cell so include
+                // it when computing E
+                ng[0] = 1;
+            }
             const Box& tbx  = mfi.tilebox( E[lev][0]->ixType().toIntVect(), ng );
 #if (AMREX_SPACEDIM == 3)
             const Box& tby  = mfi.tilebox( E[lev][1]->ixType().toIntVect(), ng );
