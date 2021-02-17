@@ -13,12 +13,9 @@ ThermalizationCollision::ThermalizationCollision (std::string const collision_na
     : CollisionBase(collision_name)
 {
 
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_species_names.size() == 1,
-                                     "Thermalization must have exactly one species.");
-
     amrex::ParmParse pp(collision_name);
 
-    getWithParser(pp, "thermal_velocity", m_thermal_velocity);
+    getWithParser(pp, "thermal_temperature", m_thermal_temperature);
     getWithParser(pp, "mean_free_path", m_mean_free_path);
 
     m_use_thermal_v = true;
@@ -36,55 +33,58 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
         return;
     }
 
-    auto& species = mypc->GetParticleContainerFromName(m_species_names[0]);
+    for (auto& species_name : m_species_names) {
 
-    amrex::Real const mean_free_path = m_mean_free_path;
-    amrex::Real const thermal_velocity = m_thermal_velocity;
-    int const ndt = m_ndt;
+        auto& species = mypc->GetParticleContainerFromName(species_name);
 
-    // Loop over refinement levels
-    for (int lev = 0; lev <= species.finestLevel(); ++lev){
+        amrex::Real const mean_free_path = m_mean_free_path;
+        amrex::Real const thermal_velocity = std::sqrt(m_thermal_temperature*PhysConst::q_e/species.getMass());
+        int const ndt = m_ndt;
 
-        amrex::Real const dt = WarpX::GetInstance().getdt(lev);
+        // Loop over refinement levels
+        for (int lev = 0; lev <= species.finestLevel(); ++lev){
 
-        for (WarpXParIter pti(species, lev); pti.isValid(); ++pti)
-        {
-            auto& attribs = pti.GetAttribs();
-            amrex::ParticleReal* const AMREX_RESTRICT ux = attribs[PIdx::ux].dataPtr();
-            long np = pti.numParticles();
+            amrex::Real const dt = WarpX::GetInstance().getdt(lev);
 
-            if (m_use_thermal_v) {
+            for (WarpXParIter pti(species, lev); pti.isValid(); ++pti)
+            {
+                auto& attribs = pti.GetAttribs();
+                amrex::ParticleReal* const AMREX_RESTRICT ux = attribs[PIdx::ux].dataPtr();
+                long np = pti.numParticles();
 
-                // Use the thermal velocity to calculate the probability
-                // Velocity is replaced by a normal distribution
-                amrex::ParallelForRNG( np,
-                    [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
-                    {
-                        // Ignore the gamma factor
-                        if (thermal_velocity*dt*ndt/mean_free_path > amrex::Random(engine)) {
-                            ux[ip] = amrex::RandomNormal(0._rt, thermal_velocity, engine);
+                if (m_use_thermal_v) {
+
+                    // Use the thermal velocity to calculate the probability
+                    // Velocity is replaced by a normal distribution
+                    amrex::ParallelForRNG( np,
+                        [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
+                        {
+                            // Ignore the gamma factor
+                            if (thermal_velocity*dt*ndt/mean_free_path > amrex::Random(engine)) {
+                                ux[ip] = amrex::RandomNormal(0._rt, thermal_velocity, engine);
+                            }
                         }
-                    }
-                );
+                    );
 
-            } else {
+                } else {
 
-                // Use the particle velocity to calculate the probability
-                // Velocity is replaced by a v*exp(-v**2/2*thermal_velocity**2) distribution
-                amrex::ParallelForRNG( np,
-                    [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
-                    {
-                        // Ignore the gamma factor
-                        if (std::abs(ux[ip])*dt*ndt/mean_free_path > amrex::Random(engine)) {
-                            amrex::ParticleReal const ss = (amrex::Random(engine) < 0.5_rt ? -1._rt : +1._rt);
-                            // (1 - rand) is used since rand includes 0, avoiding 1/0.
-                            // rand does not include 1 so (1-rand) will never be 0.
-                            amrex::ParticleReal const uxrand = 1._rt - amrex::Random(engine);
-                            ux[ip] = ss*thermal_velocity*std::sqrt(2._rt*std::log(1._rt/uxrand));
+                    // Use the particle velocity to calculate the probability
+                    // Velocity is replaced by a v*exp(-v**2/2*thermal_velocity**2) distribution
+                    amrex::ParallelForRNG( np,
+                        [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
+                        {
+                            // Ignore the gamma factor
+                            if (std::abs(ux[ip])*dt*ndt/mean_free_path > amrex::Random(engine)) {
+                                amrex::ParticleReal const ss = (amrex::Random(engine) < 0.5_rt ? -1._rt : +1._rt);
+                                // (1 - rand) is used since rand includes 0, avoiding 1/0.
+                                // rand does not include 1 so (1-rand) will never be 0.
+                                amrex::ParticleReal const uxrand = 1._rt - amrex::Random(engine);
+                                ux[ip] = ss*thermal_velocity*std::sqrt(2._rt*std::log(1._rt/uxrand));
+                            }
                         }
-                    }
-                );
+                    );
 
+                }
             }
         }
     }

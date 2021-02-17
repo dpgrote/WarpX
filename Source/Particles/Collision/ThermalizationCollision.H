@@ -28,7 +28,7 @@ public:
 
 private:
 
-    amrex::Real m_thermal_velocity;
+    amrex::Real m_thermal_temperature;
     amrex::Real m_mean_free_path;
     bool m_use_thermal_v;
 
