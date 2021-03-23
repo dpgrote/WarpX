@@ -50,7 +50,7 @@ void CollisionHandler::doCollisions ( amrex::Real cur_time, MultiParticleContain
 {
 
     for (auto& collision : allcollisions) {
-        collision->doCollisions( cur_time, mypc);
+        collision->doCollisions(cur_time, mypc);
     }
 
 }
