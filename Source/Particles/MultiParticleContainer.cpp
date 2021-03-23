@@ -237,7 +237,7 @@ MultiParticleContainer::ReadParameters ()
 
             // Get species for replenishing
             std::vector<std::string> replenish_species;
-            pp.queryarr("replenish_species", replenish_species);
+            pp_particles.queryarr("replenish_species", replenish_species);
             if (!replenish_species.empty()) {
                 for (auto const& name : replenish_species) {
                     auto it = std::find(species_names.begin(), species_names.end(), name);
@@ -253,7 +253,7 @@ MultiParticleContainer::ReadParameters ()
                 replenish_xmin = std::numeric_limits<amrex::Real>::lowest();
                 replenish_xmax = std::numeric_limits<amrex::Real>::max();
                 std::vector<amrex::Real> replenish_range;
-                pp.queryarr("replenish_range", replenish_range);
+                pp_particles.queryarr("replenish_range", replenish_range);
                 if (replenish_range.size() > 0) {
                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(replenish_range.size() == 2,
                                                      "Error: replenish_range must be min and max");
