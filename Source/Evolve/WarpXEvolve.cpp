@@ -189,6 +189,8 @@ WarpX::Evolve (int numsteps)
 
         mypc->ReplenishPlasma();
 
+        mypc->ContinuousFluxInjection(dt[0]);
+
         mypc->ApplyBoundaryConditions();
 
         // Electrostatic solver: particles can move by an arbitrary number of cells
