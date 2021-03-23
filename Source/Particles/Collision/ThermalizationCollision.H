@@ -31,6 +31,7 @@ private:
     amrex::Real m_thermal_temperature;
     amrex::Real m_mean_free_path;
     bool m_use_thermal_v;
+    bool m_use_full_velocity;
 
 };
 
