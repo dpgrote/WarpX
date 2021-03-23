@@ -44,7 +44,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
         // Loop over refinement levels
         for (int lev = 0; lev <= species.finestLevel(); ++lev){
 
-            amrex::Real const dt = WarpX::GetInstance().getdt(lev);
+            amrex::Real const dt_lev = WarpX::GetInstance().getdt(lev);
 
             for (WarpXParIter pti(species, lev); pti.isValid(); ++pti)
             {
@@ -60,7 +60,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
                         [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
                         {
                             // Ignore the gamma factor
-                            if (thermal_velocity*dt*ndt/mean_free_path > amrex::Random(engine)) {
+                            if (thermal_velocity*dt_lev*ndt/mean_free_path > amrex::Random(engine)) {
                                 ux[ip] = amrex::RandomNormal(0._rt, thermal_velocity, engine);
                             }
                         }
@@ -74,7 +74,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
                         [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
                         {
                             // Ignore the gamma factor
-                            if (std::abs(ux[ip])*dt*ndt/mean_free_path > amrex::Random(engine)) {
+                            if (std::abs(ux[ip])*dt_lev*ndt/mean_free_path > amrex::Random(engine)) {
                                 amrex::ParticleReal const ss = (amrex::Random(engine) < 0.5_rt ? -1._rt : +1._rt);
                                 // (1 - rand) is used since rand includes 0, avoiding 1/0.
                                 // rand does not include 1 so (1-rand) will never be 0.
