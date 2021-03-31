@@ -190,6 +190,11 @@ Domain Boundary Conditions
 * ``boundary.particle_lo`` and ``boundary.particle_hi`` (`2 strings` for 2D, `3 strings` for 3D)
     Options are:
     * ``Periodic``: Particles leaving the boundary will re-enter from the opposite boundary. The field boundary condition must be consistenly set to periodic and both lower and upper boundaries must be periodic.
+    * ``Reflecting``: Particles leaving the boundary are reflected from the boundary back into the domain. When
+    ``boundary.reflect_all_velocities`` is false, the sign of only the normal velocity is changed, otherwise the sign of all velocities are changed.
+
+* ``boundary.reflect_all_velocities`` (`bool`) optional (default `false`)
+    For a reflecting boundary condition, this flags whether the sign of only the normal velocity is changed or all velocities.
 
 .. _running-cpp-parameters-parallelization:
 
@@ -363,9 +368,17 @@ Particle initialization
     Not currently available in the RZ configuration.
 
 * ``particles.boundary_conditions`` (`string`) optional (default `none`)
-    Boundary conditions applied to particles. Options are:
+    Boundary conditions to apply to particles on all boundaries. Options are:
     * ``none``: the boundary conditions applied to particles is determined by ``geometry.is_periodic``.
     * ``absorbing``: particles exiting the simulation domain are discarded.
+    * ``reflecting``: particles are reflected from the boundaries
+
+* ``particles.boundary_conditions_x/y/z`` (`strings`, separated by spaces) optional (default `none`)
+    Boundary conditions to apply to particles on the x, y, or z boundaries.
+    The same values as with ``particles.boundary_conditions`` are used. If one
+    value is specified, it will apply to both boundaries, the min and max.
+    Two values can be specified for the min and max if the conditions are different.
+    Note that this option will take precedence over ``particles.boundary_conditions``.
 
 * ``particles.rigid_injected_species`` (`strings`, separated by spaces)
     List of species injected using the rigid injection method. The rigid injection
