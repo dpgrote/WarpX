@@ -282,8 +282,9 @@ Distribution across MPI ranks and parallelization
 
     If this is `timers`: costs are updated according to in-code timers.
 
-    If this is `gpuclock`: costs are measured as (max-over-threads) time spent in
-    current deposition routine (only applies when running on GPUs).
+    If this is `gpuclock`: [**requires to compile with option** ``-DWarpX_GPUCLOCK=ON``]
+    costs are measured as (max-over-threads) time spent in current deposition
+    routine (only applies when running on GPUs).
 
 * ``algo.costs_heuristic_particles_wt`` (`float`) optional
     Particle weight factor used in `Heuristic` strategy for costs update; if running on GPU,
@@ -332,13 +333,16 @@ User-defined constants
 
 Users can define their own constants in the input file.
 These constants can be used for any parameter that consists in one real number.
-User-defined constants can contain only letters, numbers and the character ``_``.
+User-defined constant names can contain only letters, numbers and the character ``_``.
 The name of each constant has to begin with a letter. The following names are used
 by WarpX, and cannot be used as user-defined constants: ``x``, ``y``, ``z``, ``X``, ``Y``, ``t``.
-For example, parameters ``a0`` and ``z_plateau`` can be specified with:
+The values of the constants can include the predefined WarpX constants listed above as well as other user-defined constants.
+For example:
 
 * ``my_constants.a0 = 3.0``
 * ``my_constants.z_plateau = 150.e-6``
+* ``my_constants.n0 = 1.e22``
+* ``my_constants.wp = sqrt(n0*q_e**2/(epsilon0*m_e))``
 
 Coordinates
 ^^^^^^^^^^^
@@ -1702,6 +1706,19 @@ Back-Transformed Diagnostics
     'Ex', 'Ey', Ez', 'Bx', 'By', Bz', 'jx', 'jy', jz' and 'rho'. Example:
     ``warpx.back_transformed_diag_fields = Ex Ez By``. By default, all fields
     are dumped.
+
+* ``warpx.buffer_size`` (`integer`)
+    The default size of the back transformed diagnostic buffers used to generate lab-frame
+    data is 256. That is, when the multifab with lab-frame data has 256 z-slices,
+    the data will be flushed out. However, if many lab-frame snapshots are required for
+    diagnostics and visualization, the GPU may run out of memory with many large boxes with
+    a size of 256 in the z-direction. This input parameter can then be used to set a
+    smaller buffer-size, preferably multiples of 8, such that, a large number of
+    lab-frame snapshot data can be generated without running out of gpu memory.
+    The downside to using a small buffer size, is that the I/O time may increase due
+    to frequent flushes of the lab-frame data. The other option is to keep the default
+    value for buffer size and use slices to reduce the memory footprint and maintain
+    optimum I/O performance.
 
 * ``slice.num_slice_snapshots_lab`` (`integer`)
     Only used when ``warpx.do_back_transformed_diagnostics`` is ``1``.

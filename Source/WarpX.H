@@ -265,6 +265,10 @@ public:
     const amrex::MultiFab& getrho_fp (int lev) {return *rho_fp[lev];}
     const amrex::MultiFab& getphi_fp (int lev) {return *phi_fp[lev];}
     const amrex::MultiFab& getF_fp (int lev) {return *F_fp[lev];}
+
+    const amrex::MultiFab& getEfield_avg_fp (int lev, int direction) {return *Efield_avg_fp[lev][direction];}
+    const amrex::MultiFab& getBfield_avg_fp (int lev, int direction) {return *Bfield_avg_fp[lev][direction];}
+
     bool DoPML () const {return do_pml;}
 
     /** get low-high-low-high-... vector for each direction indicating if mother grid PMLs are enabled */
@@ -767,6 +771,18 @@ private:
     void InitDiagnostics ();
 
     void InitNCICorrector ();
+
+    /**
+     * \brief Check that the number of guard cells is smaller than the number of valid cells,
+     * for all available MultiFabs, and abort otherwise.
+     */
+    void CheckGuardCells();
+
+    /**
+     * \brief Check that the number of guard cells is smaller than the number of valid cells,
+     * for a given MultiFab, and abort otherwise.
+     */
+    void CheckGuardCells(amrex::MultiFab const& mf);
 
     /** Check the requested resources and write performance hints */
     void PerformanceHints ();
