@@ -191,6 +191,8 @@ WarpX::Evolve (int numsteps)
 
         int num_moved = MoveWindow(move_j);
 
+        mypc->ContinuousFluxInjection(dt[0]);
+
         mypc->ReplenishPlasma();
 
         mypc->ApplyBoundaryConditions();
