@@ -416,9 +416,9 @@ WarpX::computeE (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
             }
             const Box& tbx  = mfi.tilebox( E[lev][0]->ixType().toIntVect(), ng );
 #if (AMREX_SPACEDIM == 3)
-            const Box& tby  = mfi.tilebox( E[lev][1]->ixType().toIntVect(), ng );
+            const Box& tby  = mfi.tilebox( E[lev][1]->ixType().toIntVect() );
 #endif
-            const Box& tbz  = mfi.tilebox( E[lev][2]->ixType().toIntVect(), ng );
+            const Box& tbz  = mfi.tilebox( E[lev][2]->ixType().toIntVect() );
 
             const auto& phi_arr = phi[lev]->array(mfi);
             const auto& Ex_arr = (*E[lev][0])[mfi].array();
