@@ -355,7 +355,9 @@ WarpX provides a few pre-defined constants, that can be used for any parameter t
 q_e      elementary charge
 m_e      electron mass
 m_p      proton mass
+m_u      unified atomic mass unit (Dalton)
 epsilon0 vacuum permittivity
+mu0      vacuum permeability
 clight   speed of light
 pi       math constant pi
 ======== ===================
@@ -1631,8 +1633,34 @@ In-situ capabilities can be used by turning on Sensei or Ascent (provided they a
     ``json`` only works with serial/single-rank jobs.
     When WarpX is compiled with openPMD support, the first available backend in the order given above is taken.
 
-* ``<diag_name>.openpmd_tspf`` (`bool`, optional, default ``true``) only read if ``<diag_name>.format = openpmd``.
-    Whether to write one file per timestep.
+* ``<diag_name>.openpmd_encoding`` (optional, ``v`` (variable based), ``f`` (file based) or ``g`` (group based) ) only read if ``<diag_name>.format = openpmd``.
+     openPMD file output encoding (file based will write one file per timestep).
+     `variable based` is not supported for back-transformed diagnostics.
+     Default: ``f`` (full diagnostics)
+
+* ``<diag_name>.adios2_operator.type`` (``zfp``, ``blosc``) optional,
+    `ADIOS2 I/O operator type <https://openpmd-api.readthedocs.io/en/0.13.3/details/backendconfig.html#adios2>`__ for `openPMD <https://www.openPMD.org>`_ data dumps.
+
+* ``<diag_name>.adios2_operator.parameters.*`` optional,
+    `ADIOS2 I/O operator parameters <https://openpmd-api.readthedocs.io/en/0.13.3/details/backendconfig.html#adios2>`__ for `openPMD <https://www.openPMD.org>`_ data dumps.
+
+    A typical example for `ADIOS2 output using lossless compression <https://openpmd-api.readthedocs.io/en/0.13.3/details/backendconfig.html#adios2>`__ with ``blosc`` using the ``zstd`` compressor and 6 CPU treads per MPI Rank (e.g. for a `GPU run with spare CPU resources <https://arxiv.org/abs/1706.00522>`__):
+
+    .. code-block::
+
+        <diag_name>.adios2_operator.type = blosc
+        <diag_name>.adios2_operator.parameters.compressor = zstd
+        <diag_name>.adios2_operator.parameters.clevel = 1
+        <diag_name>.adios2_operator.parameters.doshuffle = BLOSC_BITSHUFFLE
+        <diag_name>.adios2_operator.parameters.threshold = 2048
+        <diag_name>.adios2_operator.parameters.nthreads = 6  # per MPI rank (and thus per GPU)
+
+    or for the lossy ZFP compressor using very strong compression per scalar:
+
+    .. code-block::
+
+        <diag_name>.adios2_operator.type = zfp
+        <diag_name>.adios2_operator.parameters.precision = 3
 
 * ``<diag_name>.fields_to_plot`` (list of `strings`, optional)
     Fields written to output.
@@ -1806,55 +1834,62 @@ Reduced Diagnostics
     If ``warpx.reduced_diags_names`` is not provided in the input file,
     no reduced diagnostics will be done.
     This is then used in the rest of the input deck;
-    in this documentation we use `<reduced_diags_name>` as a placeholder.
+    in this documentation we use ``<reduced_diags_name>`` as a placeholder.
 
 * ``<reduced_diags_name>.type`` (`string`)
-    The type of reduced diagnostics associated with this `<reduced_diags_name>`.
-    For example, ``ParticleEnergy`` and ``FieldEnergy``.
-    All available types will be described below in detail.
+    The type of reduced diagnostics associated with this ``<reduced_diags_name>``.
+    For example, ``ParticleEnergy``, ``FieldEnergy``, etc.
+    All available types are described below in detail.
     For all reduced diagnostics,
     the first and the second columns in the output file are
     the time step and the corresponding physical time in seconds, respectively.
 
     * ``ParticleEnergy``
-        This type computes both the total and the mean
-        relativistic particle kinetic energy among all species.
+        This type computes the total and mean relativistic particle kinetic energy among all species:
 
         .. math::
 
-            E_p = \sum_{i=1}^N ( \sqrt{ p_i^2 c^2 + m_0^2 c^4 } - m_0 c^2 ) w_i
+            E_p = \sum_{i=1}^N w_i \, \left( \sqrt{|\boldsymbol{p}_i|^2 c^2 + m_0^2 c^4} - m_0 c^2 \right)
 
-        where :math:`p` is the relativistic momentum,
-        :math:`c` is the speed of light,
-        :math:`m_0` is the rest mass,
-        :math:`N` is the number of particles,
-        :math:`w` is the individual particle weight.
+        where :math:`\boldsymbol{p}_i` is the relativistic momentum of the :math:`i`-th particle, :math:`c` is the speed of light, :math:`m_0` is the rest mass, :math:`N` is the number of particles, and :math:`w_i` is the weight of the :math:`i`-th particle.
 
-        The output columns are
-        total :math:`E_p` of all species,
-        :math:`E_p` of each species,
-        total mean energy :math:`E_p / \sum w_i`,
-        mean energy of each species.
+        The output columns are the total energy of all species, the total energy per species, the total mean energy :math:`E_p / \sum_i w_i` of all species, and the total mean energy per species.
+
+    * ``ParticleMomentum``
+        This type computes the total and mean relativistic particle momentum among all species:
+
+        .. math::
+
+            \boldsymbol{P}_p = \sum_{i=1}^N w_i \, \boldsymbol{p}_i
+
+        where :math:`\boldsymbol{p}_i` is the relativistic momentum of the :math:`i`-th particle, :math:`N` is the number of particles, and :math:`w_i` is the weight of the :math:`i`-th particle.
+
+        The output columns are the components of the total momentum of all species, the total momentum per species, the total mean momentum :math:`\boldsymbol{P}_p / \sum_i w_i` of all species, and the total mean momentum per species.
 
     * ``FieldEnergy``
-        This type computes the electric and magnetic field energy.
+        This type computes the electromagnetic field energy
 
         .. math::
 
-            E_f = \sum [ \varepsilon_0 E^2 / 2 + B^2 / ( 2 \mu_0 ) ] \Delta V
+            E_f = \frac{1}{2} \sum_{\text{cells}} \left( \varepsilon_0 |\boldsymbol{E}|^2 + \frac{|\boldsymbol{B}|^2}{\mu_0} \right) \Delta V
 
-        where
-        :math:`E` is the electric field,
-        :math:`B` is the magnetic field,
-        :math:`\varepsilon_0` is the vacuum permittivity,
-        :math:`\mu_0` is the vacuum permeability,
-        :math:`\Delta V` is the cell volume (or area for 2D),
-        the sum is over all cells.
+        where :math:`\boldsymbol{E}` is the electric field, :math:`\boldsymbol{B}` is the magnetic field, :math:`\varepsilon_0` is the vacuum permittivity, :math:`\mu_0` is the vacuum permeability, :math:`\Delta V` is the cell volume (or cell area in 2D), and the sum is over all cells.
 
-        The output columns are
-        total field energy :math:`E_f`,
-        :math:`E` field energy,
-        :math:`B` field energy, at mesh refinement levels from 0 to :math:`n`.
+        The output columns are the total field energy :math:`E_f`, the :math:`\boldsymbol{E}` field energy, and the :math:`\boldsymbol{B}` field energy, at each mesh refinement level.
+
+    * ``FieldMomentum``
+        This type computes the electromagnetic field momentum
+
+        .. math::
+
+            \boldsymbol{P}_f = \varepsilon_0 \sum_{\text{cells}} \left( \boldsymbol{E} \times \boldsymbol{B} \right) \Delta V
+
+        where :math:`\boldsymbol{E}` is the electric field, :math:`\boldsymbol{B}` is the magnetic field, :math:`\varepsilon_0` is the vacuum permittivity, :math:`\Delta V` is the cell volume (or cell area in 2D), and the sum is over all cells.
+
+        The output columns are the components of the total field momentum :math:`\boldsymbol{P}_f` at each mesh refinement level.
+
+        Note that the fields are *not* averaged on the cell centers before their energy is
+        computed.
 
     * ``FieldMaximum``
         This type computes the maximum value of each component of the electric and magnetic fields
@@ -1888,6 +1923,25 @@ Reduced Diagnostics
 
         Note that the charge densities are averaged on the cell centers before their maximum values
         are computed.
+
+    * ``FieldReduction``
+        This type computes an arbitrary reduction of the positions and the electromagnetic fields.
+
+        * ``<reduced_diags_name>.reduced_function(x,y,z,Ex,Ey,Ez,Bx,By,Bz)`` (`string`)
+            An analytic function to be reduced must be provided, using the math parser.
+
+        * ``<reduced_diags_name>.reduction_type`` (`string`)
+            The type of reduction to be performed. It must be either ``Maximum``, ``Minimum`` or
+            ``Integral``.
+            ``Integral`` computes the spatial integral of the function defined in the parser by
+            summing its value on all grid points and multiplying the result by the volume of a
+            cell.
+            Please be also aware that measuring maximum quantities might be very noisy in PIC
+            simulations.
+
+        The only output column is the reduced value.
+
+        Note that the fields are averaged on the cell centers before the reduction is performed.
 
     * ``ParticleNumber``
         This type computes the total number of macroparticles and of physical particles (i.e. the
@@ -2172,8 +2226,10 @@ Lookup tables store pre-computed values for functions used by the QED modules.
     Activating the Schwinger process requires the code to be compiled with ``QED=TRUE`` and ``PICSAR``.
     If ``warpx.do_qed_schwinger = 1``, Schwinger product species must be specified with
     ``qed_schwinger.ele_product_species`` and ``qed_schwinger.pos_product_species``.
-    **Note: implementation of this feature is in progress.**
-    So far it requires ``warpx.do_nodal=1`` and does not support mesh refinement, cylindrical coordinates or single precision.
+    Schwinger process requires either ``warpx.do_nodal=1`` or
+    ``algo.field_gathering=momentum-conserving`` (so that different field components are computed
+    at the same location in the grid) and does not currently support mesh refinement, cylindrical
+    coordinates or single precision.
 
 * ``qed_schwinger.ele_product_species`` (`string`)
     If Schwinger process is activated, an electron product species must be specified
