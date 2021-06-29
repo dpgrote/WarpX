@@ -13,6 +13,7 @@
 #include "WarpXParticleContainer_fwd.H"
 
 #include "Evolve/WarpXDtType.H"
+#include "Particles/ParticleBoundaries.H"
 #include "SpeciesPhysicalProperties.H"
 
 #ifdef WARPX_QED

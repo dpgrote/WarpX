@@ -8,15 +8,11 @@
 #define WARPX_PARTICLES_COLLISION_THERMALIZATIONCOLLISION_H_
 
 #include "CollisionBase.H"
-
 #include "Particles/MultiParticleContainer_fwd.H"
-#include "Particles/WarpXParticleContainer_fwd.H"
 
 #include <AMReX_REAL.H>
 
-#include <AMReX_BaseFwd.H>
-
-#include <string>
+#include <iosfwd>
 
 class ThermalizationCollision
     : public CollisionBase
