@@ -95,6 +95,9 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
 
             amrex::Real const dt_lev = WarpX::GetInstance().getdt(lev);
 
+#ifdef AMREX_USE_OMP
+#pragma omp parallel
+#endif
             for (WarpXParIter pti(species, lev); pti.isValid(); ++pti)
             {
                 auto& attribs = pti.GetAttribs();
