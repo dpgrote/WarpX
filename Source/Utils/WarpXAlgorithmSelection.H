@@ -104,7 +104,8 @@ struct FieldBoundaryType {
         Damped = 4,   // Fields in the guard cells are damped for PSATD
                      //in the moving window direction
         Absorbing_SilverMueller = 5, // Silver-Mueller boundary condition
-        None = 6     // The fields values at the boundary are not updated. This is
+        Floating = 6, // Floating potential (electrostatic only)
+        None = 7     // The fields values at the boundary are not updated. This is
                      // useful for RZ simulations, at r=0.
     };
 };

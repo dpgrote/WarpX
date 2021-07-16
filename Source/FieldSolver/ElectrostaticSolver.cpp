@@ -835,6 +835,25 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                               amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi) const
 {
 
+    // With Dirichlet (PEC) boundaries, the value of phi at the boundary
+    // is copied into the work array, phi1d.
+    // With Floating, the value of phi one cell inside the domain is
+    // copied into the boundaries of the work array.
+    int phi_copy_offset_lo = 0;
+    int phi_copy_offset_hi = 0;
+    if ( WarpX::field_boundary_lo[0] == FieldBoundaryType::PEC ) {
+        phi_copy_offset_lo = 0;
+    }
+    else if ( WarpX::field_boundary_lo[0] == FieldBoundaryType::Floating ) {
+        phi_copy_offset_lo = 1;
+    }
+    if ( WarpX::field_boundary_hi[0] == FieldBoundaryType::PEC ) {
+        phi_copy_offset_hi = 0;
+    }
+    else if ( WarpX::field_boundary_hi[0] == FieldBoundaryType::Floating ) {
+        phi_copy_offset_hi = 1;
+    }
+
     // This loop is here as a stub - the solver won't work with max_level > 0.
     for (int lev = 0; lev <= max_level; lev++) {
 
@@ -865,11 +884,14 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
             tbx.setBig(1, tbx.smallEnd(1));
 
             const auto& rho_arr = rho[lev]->array(mfi);
+            const auto& phi_arr = phi[lev]->array(mfi);
 
             // Copy rho into phi1d
             amrex::ParallelFor( tbx,
                 [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
                     phi1d_arr(i,0,0) = rho_arr(i,0,0)*norm;
+                    if (i == 0) {phi1d_arr(0,0,0) = phi_arr(phi_copy_offset_lo,0,0);}
+                    if (i == nx_total) {phi1d_arr(nx_total,0,0) = phi_arr(nx_total-phi_copy_offset_hi,0,0);}
                 }
             );
 
@@ -878,8 +900,6 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
 
             // set the end points using Dirichlet boundary conditions.
             // Force to zero now, later add optional input values
-            phi1d_arr(0,0,0) = 0._rt;
-            phi1d_arr(nx_total,0,0) = 0._rt;
             phi1d_arr(1,0,0) += phi1d_arr(0,0,0);
             phi1d_arr(nx_total-1,0,0) += phi1d_arr(nx_total,0,0);
 
