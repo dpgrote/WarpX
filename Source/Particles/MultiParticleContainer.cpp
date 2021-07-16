@@ -304,7 +304,7 @@ MultiParticleContainer::ReadParameters ()
                 replenish_xmin = std::numeric_limits<amrex::Real>::lowest();
                 replenish_xmax = std::numeric_limits<amrex::Real>::max();
                 std::vector<amrex::Real> replenish_range;
-                pp_particles.queryarr("replenish_range", replenish_range);
+                queryArrWithParser(pp_particles, "replenish_range", replenish_range, 0, 2);
                 if (replenish_range.size() > 0) {
                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(replenish_range.size() == 2,
                                                      "Error: replenish_range must be min and max");
