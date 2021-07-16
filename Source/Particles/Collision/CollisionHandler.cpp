@@ -42,11 +42,11 @@ CollisionHandler::CollisionHandler()
         else if (type == "background_mcc") {
             allcollisions[i] = std::make_unique<BackgroundMCCCollision>(collision_names[i]);
         }
-        else{
-            amrex::Abort("Unknown collision type.");
-        }
         else if (type == "thermalization") {
             allcollisions[i] = std::make_unique<ThermalizationCollision>(collision_names[i]);
+        }
+        else{
+            amrex::Abort("Unknown collision type.");
         }
 
     }
