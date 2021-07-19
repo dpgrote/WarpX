@@ -804,7 +804,7 @@ MultiParticleContainer::ReplenishPlasma ()
 
     const long totalnumberofparticles = pc->TotalNumberOfParticles();
     const long particles_lost = m_total_number_of_particles_for_replenishing - totalnumberofparticles;
-    std::cout << "Adding " << particles_lost << " particles\n";
+    amrex::Print() << "Adding " << particles_lost << " particles\n";
     if (particles_lost <= 0) return;
 
     InjectorDensity* inj_rho = pc->plasma_injector->getInjectorDensity();
