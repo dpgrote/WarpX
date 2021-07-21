@@ -787,6 +787,7 @@ MultiParticleContainer::ReplenishPlasma ()
     domain_realbox.setLo(0, std::max(replenish_xmin, domain_realbox.lo(0)));
     domain_realbox.setHi(0, std::min(replenish_xmax, domain_realbox.hi(0)));
     const amrex::Real domain_volume = domain_realbox.volume();
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(domain_volume > 0., "Error: Replenish range outside of domain");
 
     // Parameters are based off of the first species in the list,
     // which is the one whose number will be kept fixed.
