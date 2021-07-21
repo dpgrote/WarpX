@@ -884,7 +884,7 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
 
             amrex::Box box_total0 = mfi.tilebox();
             box_total0.setBig(1, 0); // Needed since with nodal, ny = 2
-            
+
             amrex::ParallelFor( box_total0,
                 [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
                     amrex::Real diag = zwork1d_arr(nx_total,0,0);
