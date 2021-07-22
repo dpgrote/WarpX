@@ -384,6 +384,12 @@ WarpX::WarpX ()
         AMREX_ALWAYS_ASSERT(use_fdtd_nci_corr == 0);
         AMREX_ALWAYS_ASSERT(do_subcycling == 0);
     }
+
+    if (WarpX::current_deposition_algo != CurrentDepositionAlgo::Esirkepov) {
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            use_fdtd_nci_corr == 0,
+            "The NCI corrector should only be used with Esirkepov deposition");
+    }
 }
 
 WarpX::~WarpX ()
@@ -1098,10 +1104,6 @@ WarpX::ReadParameters ()
         {
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(update_with_rho,
                 "psatd.update_with_rho must be set to 1 when psatd.J_linear_in_time = 1");
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(do_dive_cleaning,
-                "warpx.do_dive_cleaning must be set to 1 when psatd.J_linear_in_time = 1");
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(do_divb_cleaning,
-                "warpx.do_divb_cleaning must be set to 1 when psatd.J_linear_in_time = 1");
         }
 
         constexpr int zdir = AMREX_SPACEDIM - 1;
