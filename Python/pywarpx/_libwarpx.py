@@ -74,8 +74,13 @@ libname = "libwarpx.{0}.{1}".format(geometry_dim, mod_ext)
 
 try:
     libwarpx = ctypes.CDLL(os.path.join(_get_package_root(), libname))
-except OSError:
-    raise Exception('"%s" was not installed. It can be installed by running "make" in the Python directory of WarpX' % libname)
+except OSError as e:
+    value = e.args[0]
+    if f'{libname}: cannot open shared object file: No such file or directory' in value:
+        raise Exception(f'"{libname}" was not installed. Installation instructions can be found here https://warpx.readthedocs.io/en/latest/install/users.html') from e
+    else:
+        print("Failed to load the libwarpx shared object library")
+        raise
 
 # WarpX can be compiled using either double or float
 libwarpx.warpx_Real_size.restype = ctypes.c_int
@@ -115,6 +120,7 @@ class Particle(ctypes.Structure):
 # some useful typenames
 _LP_particle_p = ctypes.POINTER(ctypes.POINTER(Particle))
 _LP_c_int = ctypes.POINTER(ctypes.c_int)
+_LP_LP_c_int = ctypes.POINTER(_LP_c_int)
 _LP_c_void_p = ctypes.POINTER(ctypes.c_void_p)
 _LP_c_real = ctypes.POINTER(c_real)
 _LP_LP_c_real = ctypes.POINTER(_LP_c_real)
@@ -180,6 +186,9 @@ libwarpx.warpx_getChargeDensityCP.restype = _LP_LP_c_real
 libwarpx.warpx_getChargeDensityCPLoVects.restype = _LP_c_int
 libwarpx.warpx_getChargeDensityFP.restype = _LP_LP_c_real
 libwarpx.warpx_getChargeDensityFPLoVects.restype = _LP_c_int
+libwarpx.warpx_getParticleBoundaryBufferSize.restype = ctypes.c_int
+libwarpx.warpx_getParticleBoundaryBuffer.restype = _LP_LP_c_particlereal
+libwarpx.warpx_getParticleBoundaryBufferScrapedSteps.restype = _LP_LP_c_int
 
 libwarpx.warpx_getEx_nodal_flag.restype = _LP_c_int
 libwarpx.warpx_getEy_nodal_flag.restype = _LP_c_int
@@ -242,6 +251,15 @@ def get_nattr():
     '''
     # --- The -3 is because the comps include the velocites
     return libwarpx.warpx_nComps() - 3
+
+def get_nattr_species(species_name):
+    '''
+
+    Get the number of real attributes for the given species.
+
+    '''
+    return libwarpx.warpx_nCompsSpecies(
+        ctypes.c_char_p(species_name.encode('utf-8')))
 
 def amrex_init(argv, mpi_comm=None):
     # --- Construct the ctype list of strings to pass in
@@ -361,9 +379,8 @@ def getCellSize(direction, level=0):
 #
 #    libwarpx.warpx_ComputePMLFactors(lev, dt)
 
-def add_particles(species_name,
-                  x=0., y=0., z=0., ux=0., uy=0., uz=0., attr=0.,
-                  unique_particles=True):
+def add_particles(species_name, x=None, y=None, z=None, ux=None, uy=None, uz=None, w=None,
+                  unique_particles=True, **kwargs):
     '''
 
     A function for adding particles to the WarpX simulation.
@@ -374,9 +391,12 @@ def add_particles(species_name,
     species_name     : the species to add the particle to
     x, y, z          : arrays or scalars of the particle positions (default = 0.)
     ux, uy, uz       : arrays or scalars of the particle momenta (default = 0.)
-    attr             : a 2D numpy array or scalar with the particle attributes (default = 0.)
+    w                : array or scalar of particle weights (default = 0.)
     unique_particles : whether the particles are unique or duplicated on
                        several processes. (default = True)
+    kwargs           : dictionary containing an entry for all the extra particle
+                       attribute arrays. If an attribute is not given it will be
+                       set to 0.
 
     '''
 
@@ -387,41 +407,75 @@ def add_particles(species_name,
     lenux = np.size(ux)
     lenuy = np.size(uy)
     lenuz = np.size(uz)
-    lenattr = np.size(attr)
+    lenw = np.size(w)
 
-    if (lenx == 0 or leny == 0 or lenz == 0 or lenux == 0 or
-        lenuy == 0 or lenuz == 0 or lenattr == 0):
+    # --- Find the max length of the parameters supplied
+    maxlen = 0
+    if x is not None:
+        maxlen = max(maxlen, lenx)
+    if y is not None:
+        maxlen = max(maxlen, leny)
+    if z is not None:
+        maxlen = max(maxlen, lenz)
+    if ux is not None:
+        maxlen = max(maxlen, lenux)
+    if uy is not None:
+        maxlen = max(maxlen, lenuy)
+    if uz is not None:
+        maxlen = max(maxlen, lenuz)
+    if w is not None:
+        maxlen = max(maxlen, lenw)
+
+    # --- Make sure that the lengths of the input parameters are consistent
+    assert x is None or lenx==maxlen or lenx==1, "Length of x doesn't match len of others"
+    assert y is None or leny==maxlen or leny==1, "Length of y doesn't match len of others"
+    assert z is None or lenz==maxlen or lenz==1, "Length of z doesn't match len of others"
+    assert ux is None or lenux==maxlen or lenux==1, "Length of ux doesn't match len of others"
+    assert uy is None or lenuy==maxlen or lenuy==1, "Length of uy doesn't match len of others"
+    assert uz is None or lenuz==maxlen or lenuz==1, "Length of uz doesn't match len of others"
+    assert w is None or lenw==maxlen or lenw==1, "Length of w doesn't match len of others"
+    for key, val in kwargs.items():
+        assert np.size(val)==1 or len(val)==maxlen, f"Length of {key} doesn't match len of others"
+
+    # --- If the length of the input is zero, then quietly return
+    # --- This is not an error - it just means that no particles are to be injected.
+    if maxlen == 0:
         return
 
-    maxlen = max(lenx, leny, lenz, lenux, lenuy, lenuz, lenattr)
-    assert lenx==maxlen or lenx==1, "Length of x doesn't match len of others"
-    assert leny==maxlen or leny==1, "Length of y doesn't match len of others"
-    assert lenz==maxlen or lenz==1, "Length of z doesn't match len of others"
-    assert lenux==maxlen or lenux==1, "Length of ux doesn't match len of others"
-    assert lenuy==maxlen or lenuy==1, "Length of uy doesn't match len of others"
-    assert lenuz==maxlen or lenuz==1, "Length of uz doesn't match len of others"
-    assert lenattr==maxlen or lenattr==1, "Length of attr doesn't match len of others"
-
+    # --- Broadcast scalars into appropriate length arrays
+    # --- If the parameter was not supplied, use the default value
     if lenx == 1:
-        x = np.array(x)*np.ones(maxlen)
+        x = np.full(maxlen, (x or 0.), float)
     if leny == 1:
-        y = np.array(y)*np.ones(maxlen)
+        y = np.full(maxlen, (y or 0.), float)
     if lenz == 1:
-        z = np.array(z)*np.ones(maxlen)
+        z = np.full(maxlen, (z or 0.), float)
     if lenux == 1:
-        ux = np.array(ux)*np.ones(maxlen)
+        ux = np.full(maxlen, (ux or 0.), float)
     if lenuy == 1:
-        uy = np.array(uy)*np.ones(maxlen)
+        uy = np.full(maxlen, (uy or 0.), float)
     if lenuz == 1:
-        uz = np.array(uz)*np.ones(maxlen,'d')
-    if lenattr == 1:
-        nattr = get_nattr()
-        attr = np.array(attr)*np.ones([maxlen,nattr])
+        uz = np.full(maxlen, (uz or 0.), float)
+    if lenw == 1:
+        w = np.full(maxlen, (w or 0.), float)
+    for key, val in kwargs.items():
+        if np.size(val) == 1:
+            kwargs[key] = np.full(maxlen, val, float)
+
+    # --- The -3 is because the comps include the velocites
+    nattr = get_nattr_species(species_name) - 3
+    attr = np.zeros((maxlen, nattr))
+    attr[:,0] = w
+
+    for key, vals in kwargs.items():
+        # --- The -3 is because components 1 to 3 are velocities
+        attr[:,get_particle_comp_index(species_name, key)-3] = vals
 
     libwarpx.warpx_addNParticles(
         ctypes.c_char_p(species_name.encode('utf-8')), x.size,
-        x, y, z, ux, uy, uz, attr.shape[-1], attr, unique_particles
+        x, y, z, ux, uy, uz, nattr, attr, unique_particles
     )
+
 
 def get_particle_count(species_name):
     '''
@@ -443,6 +497,7 @@ def get_particle_count(species_name):
     return libwarpx.warpx_getNumParticles(
         ctypes.c_char_p(species_name.encode('utf-8'))
     )
+
 
 def get_particle_structs(species_name, level):
     '''
@@ -710,6 +765,127 @@ def add_real_comp(species_name, pid_name, comm=True):
         ctypes.c_char_p(species_name.encode('utf-8')),
         ctypes.c_char_p(pid_name.encode('utf-8')), comm
     )
+
+
+def _get_boundary_number(boundary):
+    '''
+
+    Utility function to find the boundary number given a boundary name.
+
+    Parameters
+    ----------
+
+        boundary       : the boundary from which to get the scraped particle data.
+                         In the form x/y/z_hi/lo or eb.
+
+    Returns
+    -------
+
+    Integer index in the boundary scraper buffer for the given boundary.
+    '''
+    if geometry_dim == '3d':
+        dimensions = {'x' : 0, 'y' : 1, 'z' : 2}
+    elif geometry_dim == '2d':
+        dimensions = {'x' : 0, 'z' : 1}
+    else:
+        raise NotImplementedError("RZ is not supported for particle scraping.")
+
+    if boundary != 'eb':
+        boundary_parts = boundary.split("_")
+        dim_num = dimensions[boundary_parts[0]]
+        if boundary_parts[1] == 'lo':
+            side = 0
+        elif boundary_parts[1] == 'hi':
+            side = 1
+        else:
+            raise RuntimeError(f'Unknown boundary specified: {boundary}')
+        boundary_num = 2 * dim_num + side
+    else:
+        boundary_num = 4 if geometry_dim == '2d' else 6
+
+    return boundary_num
+
+
+def get_particle_boundary_buffer_size(species_name, boundary):
+    '''
+
+    This returns the number of particles that have been scraped so far in the simulation
+    from the specified boundary and of the specified species.
+
+    Parameters
+    ----------
+
+        species_name   : return the number of scraped particles of this species
+        boundary       : the boundary from which to get the scraped particle data.
+                         In the form x/y/z_hi/lo
+
+    Returns
+    -------
+
+        The number of particles scraped so far from a boundary and of a species.
+
+    '''
+    return libwarpx.warpx_getParticleBoundaryBufferSize(
+        ctypes.c_char_p(species_name.encode('utf-8')),
+        _get_boundary_number(boundary)
+    )
+
+
+def get_particle_boundary_buffer(species_name, boundary, comp_name, level):
+    '''
+
+    This returns a list of numpy arrays containing the particle array data
+    for a species that has been scraped by a specific simulation boundary.
+
+    The data for the numpy arrays are not copied, but share the underlying
+    memory buffer with WarpX. The numpy arrays are fully writeable.
+
+    Parameters
+    ----------
+
+        species_name   : the species name that the data will be returned for.
+        boundary       : the boundary from which to get the scraped particle data.
+                         In the form x/y/z_hi/lo or eb.
+        comp_name      : the component of the array data that will be returned.
+                         If "step_scraped" the special attribute holding the
+                         timestep at which a particle was scraped will be
+                         returned.
+        level          : Which AMR level to retrieve scraped particle data from.
+    Returns
+    -------
+
+        A List of numpy arrays.
+
+    '''
+    particles_per_tile = _LP_c_int()
+    num_tiles = ctypes.c_int(0)
+    if comp_name == 'step_scraped':
+        data = libwarpx.warpx_getParticleBoundaryBufferScrapedSteps(
+            ctypes.c_char_p(species_name.encode('utf-8')),
+            _get_boundary_number(boundary), level,
+            ctypes.byref(num_tiles), ctypes.byref(particles_per_tile)
+        )
+    else:
+        data = libwarpx.warpx_getParticleBoundaryBuffer(
+            ctypes.c_char_p(species_name.encode('utf-8')),
+            _get_boundary_number(boundary), level,
+            ctypes.byref(num_tiles), ctypes.byref(particles_per_tile),
+            ctypes.c_char_p(comp_name.encode('utf-8'))
+        )
+
+    particle_data = []
+    for i in range(num_tiles.value):
+        arr = np.ctypeslib.as_array(data[i], (particles_per_tile[i],))
+        try:
+            # This fails on some versions of numpy
+            arr.setflags(write=1)
+        except ValueError:
+            pass
+        particle_data.append(arr)
+
+    _libc.free(particles_per_tile)
+    _libc.free(data)
+    return particle_data
 
 
 def _get_mesh_field_list(warpx_func, level, direction, include_ghosts):
@@ -1625,6 +1801,7 @@ def get_mesh_charge_density_cp_lovects(level, include_ghosts=True):
 
     '''
     return _get_mesh_array_lovects(level, None, include_ghosts, libwarpx.warpx_getChargeDensityCPLoVects)
+
 
 def get_mesh_charge_density_fp_lovects(level, include_ghosts=True):
     '''
