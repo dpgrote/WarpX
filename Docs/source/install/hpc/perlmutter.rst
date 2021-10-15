@@ -36,34 +36,31 @@ We use the following modules and environments on the system (``$HOME/perlmutter_
 .. code-block:: bash
 
    # please set your project account
-   export proj=<yourProject>
+   export proj=<yourProject>  # LBNL/AMP: m3906_g
 
    # required dependencies
-   module load cmake
+   module load cmake/git-20210830  # 3.22-dev
    module swap PrgEnv-nvidia PrgEnv-gnu
    module swap gcc gcc/9.3.0
    module load cuda
-
-   # newer CMake (3.22+) for HPE/Cray FindMPI.cmake improvement
-   export PATH=$HOME/sw/cmake-3.22.0-dev/bin:$PATH
 
    # optional: just an additional text editor
    # module load nano  # TODO: request from support
 
    # optional: for openPMD support
-   module load cray-hdf5-parallel/1.12.0.6
+   module load cray-hdf5-parallel/1.12.0.7
    export CMAKE_PREFIX_PATH=$HOME/sw/perlmutter/adios2-2.7.1:$CMAKE_PREFIX_PATH
 
    # optional: Python, ...
    # TODO
 
-   # GPU-aware MPI
-   export MPICH_GPU_SUPPORT_ENABLED=1
-
    # optional: an alias to request an interactive node for two hours
    function getNode() {
        salloc -N 1 --ntasks-per-node=4 -t 2:00:00 -C gpu -c 32 -G 4 -A $proj
    }
+
+   # GPU-aware MPI
+   export MPICH_GPU_SUPPORT_ENABLED=1
 
    # optimize CUDA compilation for A100
    export AMREX_CUDA_ARCH=8.0
@@ -82,15 +79,7 @@ We recommend to store the above lines in a file, such as ``$HOME/perlmutter_warp
 
    source $HOME/perlmutter_warpx.profile
 
-Furthermore, until Perlmutter provides a CMake 3.22.0+ module, we need to execute once:
-
-.. code-block:: bash
-
-   git clone https://gitlab.kitware.com/cmake/cmake.git $HOME/src/cmake
-   cmake -S $HOME/src/cmake -B $HOME/src/cmake/build -DCMAKE_INSTALL_PREFIX=$HOME/sw/cmake-3.22.0-dev
-   cmake --build $HOME/src/cmake/build --target install -j 32
-
-And install ADIOS2:
+And since Perlmutter does not yet provide a module for it, install ADIOS2:
 
 .. code-block:: bash
 
@@ -118,8 +107,8 @@ Running
 
 .. _running-cpp-perlmutter-A100-GPUs:
 
-A100 GPUs
-^^^^^^^^^
+A100 GPUs (40 GB)
+^^^^^^^^^^^^^^^^^
 
 The batch script below can be used to run a WarpX simulation on multiple nodes (change ``-N`` accordingly) on the supercomputer Perlmutter at NERSC.
 Replace descriptions between chevrons ``<>`` by relevant values, for instance ``<input file>`` could be ``plasma_mirror_inputs``.
@@ -133,6 +122,6 @@ To run a simulation, copy the lines above to a file ``batch_perlmutter.sh`` and 
 
 .. code-block:: bash
 
-   bsub batch_perlmutter.sh
+   sbatch batch_perlmutter.sh
 
 to submit the job.

@@ -72,6 +72,7 @@ WarpX::Evolve (int numsteps)
 
     for (int step = istep[0]; step < numsteps_max && cur_time < stop_time; ++step)
     {
+        WARPX_PROFILE("WarpX::Evolve::step");
         Real evolve_time_beg_step = amrex::second();
 
         multi_diags->NewIteration();
@@ -151,10 +152,11 @@ WarpX::Evolve (int numsteps)
         }
 
         // Run multi-physics modules:
-        // ionization, Coulomb collisions, QED Schwinger
+        // ionization, Coulomb collisions, QED
         doFieldIonization();
         mypc->doCollisions( cur_time );
 #ifdef WARPX_QED
+        doQEDEvents();
         mypc->doQEDSchwinger();
 #endif
 
@@ -193,11 +195,6 @@ WarpX::Evolve (int numsteps)
             amrex::Abort("Unsupported do_subcycling type");
         }
 
-        // Run remaining QED modules
-#ifdef WARPX_QED
-        doQEDEvents();
-#endif
-
         // Resample particles
         // +1 is necessary here because value of step seen by user (first step is 1) is different than
         // value of step in code (first step is 0)
@@ -235,15 +232,15 @@ WarpX::Evolve (int numsteps)
 
         mypc->ReplenishPlasma();
 
-        m_particle_boundary_buffer->gatherParticles(*mypc, amrex::GetVecOfConstPtrs(m_distance_to_eb));
-
         mypc->ApplyBoundaryConditions();
 
-        // interact with particles with EB walls (if present)
+        // interact the particles with EB walls (if present)
 #ifdef AMREX_USE_EB
         AMREX_ALWAYS_ASSERT(maxLevel() == 0);
         mypc->ScrapeParticles(amrex::GetVecOfConstPtrs(m_distance_to_eb));
 #endif
+
+        m_particle_boundary_buffer->gatherParticles(*mypc, amrex::GetVecOfConstPtrs(m_distance_to_eb));
 
         // Electrostatic solver: particles can move by an arbitrary number of cells
         if( do_electrostatic != ElectrostaticSolverAlgo::None )
@@ -277,6 +274,7 @@ WarpX::Evolve (int numsteps)
         }
 
         if( do_electrostatic != ElectrostaticSolverAlgo::None ) {
+            if (warpx_py_beforeEsolve) warpx_py_beforeEsolve();
             // Electrostatic solver:
             // For each species: deposit charge and add the associated space-charge
             // E and B field to the grid ; this is done at the end of the PIC
@@ -285,6 +283,7 @@ WarpX::Evolve (int numsteps)
             // and so that the fields are at the correct time in the output.
             bool const reset_fields = true;
             ComputeSpaceChargeField( reset_fields );
+            if (warpx_py_afterEsolve) warpx_py_afterEsolve();
         }
 
         if ((cur_time >= stop_time - 1.e-3*dt[0]) ||
@@ -321,17 +320,6 @@ WarpX::Evolve (int numsteps)
         // in the evolve timing.
         if (warpx_py_afterstep) warpx_py_afterstep();
 
-        Real evolve_time_end_step = amrex::second();
-        evolve_time += evolve_time_end_step - evolve_time_beg_step;
-
-        if (verbose) {
-            amrex::Print()<< "STEP " << step+1 << " ends." << " TIME = " << cur_time
-                        << " DT = " << dt[0] << "\n";
-            amrex::Print()<< "Evolve time = " << evolve_time
-                      << " s; This step = " << evolve_time_end_step-evolve_time_beg_step
-                      << " s; Avg. per step = " << evolve_time/(step+1) << " s\n";
-        }
-
         /// reduced diags
         if (reduced_diags->m_plot_rd != 0)
         {
@@ -345,6 +333,18 @@ WarpX::Evolve (int numsteps)
             amrex::Print() << "\n"; // better: conditional \n based on return value
             amrex::ParmParse().QueryUnusedInputs();
             early_params_checked = true;
+        }
+
+        // create ending time stamp for calculating elapsed time each iteration
+        Real evolve_time_end_step = amrex::second();
+        evolve_time += evolve_time_end_step - evolve_time_beg_step;
+
+        if (verbose) {
+            amrex::Print()<< "STEP " << step+1 << " ends." << " TIME = " << cur_time
+                        << " DT = " << dt[0] << "\n";
+            amrex::Print()<< "Evolve time = " << evolve_time
+                      << " s; This step = " << evolve_time_end_step-evolve_time_beg_step
+                      << " s; Avg. per step = " << evolve_time/(step+1) << " s\n";
         }
 
         if (cur_time >= stop_time - 1.e-3*dt[0]) {
@@ -368,6 +368,7 @@ WarpX::Evolve (int numsteps)
 void
 WarpX::OneStep_nosub (Real cur_time)
 {
+    WARPX_PROFILE("WarpX::OneStep_nosub()");
 
     // Push particle from x^{n} to x^{n+1}
     //               from p^{n-1/2} to p^{n+1/2}
@@ -410,17 +411,25 @@ WarpX::OneStep_nosub (Real cur_time)
             FillBoundaryE(guard_cells.ng_alloc_EB);
         }
         PushPSATD();
-        FillBoundaryE(guard_cells.ng_alloc_EB);
-        FillBoundaryB(guard_cells.ng_alloc_EB);
 
         if (use_hybrid_QED) {
-            WarpX::Hybrid_QED_Push(dt);
             FillBoundaryE(guard_cells.ng_alloc_EB);
+            FillBoundaryB(guard_cells.ng_alloc_EB);
+            WarpX::Hybrid_QED_Push(dt);
+            FillBoundaryE(guard_cells.ng_afterPushPSATD);
+        }
+        else {
+            FillBoundaryE(guard_cells.ng_afterPushPSATD);
+            FillBoundaryB(guard_cells.ng_afterPushPSATD);
+            if (WarpX::do_dive_cleaning || WarpX::do_pml_dive_cleaning)
+                FillBoundaryF(guard_cells.ng_afterPushPSATD);
+            if (WarpX::do_divb_cleaning || WarpX::do_pml_divb_cleaning)
+                FillBoundaryG(guard_cells.ng_afterPushPSATD);
         }
 
         // Synchronize E and B fields on nodal points
-        NodalSyncE();
-        NodalSyncB();
+        NodalSync(Efield_fp, Efield_cp);
+        NodalSync(Bfield_fp, Bfield_cp);
 
         if (do_pml) {
             DampPML();
@@ -451,8 +460,8 @@ WarpX::OneStep_nosub (Real cur_time)
         EvolveB(0.5_rt * dt[0], DtType::SecondHalf); // We now have B^{n+1}
 
         // Synchronize E and B fields on nodal points
-        NodalSyncE();
-        NodalSyncB();
+        NodalSync(Efield_fp, Efield_cp);
+        NodalSync(Bfield_fp, Bfield_cp);
 
         if (do_pml) {
             FillBoundaryF(guard_cells.ng_alloc_F);
@@ -582,6 +591,10 @@ WarpX::OneStep_multiJ (const amrex::Real cur_time)
         FillBoundaryB(guard_cells.ng_alloc_EB);
         if (WarpX::do_dive_cleaning) FillBoundaryF(guard_cells.ng_alloc_F);
         if (WarpX::do_divb_cleaning) FillBoundaryG(guard_cells.ng_alloc_G);
+
+        // Synchronize E and B fields on nodal points
+        NodalSync(Efield_fp, Efield_cp);
+        NodalSync(Bfield_fp, Bfield_cp);
     }
     else
     {

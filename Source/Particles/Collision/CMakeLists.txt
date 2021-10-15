@@ -7,3 +7,4 @@ target_sources(WarpX
     MCCProcess.cpp
 )
 
+add_subdirectory(BinaryCollision)
