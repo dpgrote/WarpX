@@ -884,7 +884,9 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
             /* amrex::Gpu::streamSynchronize(); */
         }
 
-        phi[lev]->ParallelCopy(phi1d_mf, 0, 0, 1, Geom(lev).periodicity());
+        // Copy phi1d to phi, including the x guard cell
+        IntVect xghost(AMREX_D_DECL(1,0,0));
+        phi[lev]->ParallelCopy(phi1d_mf, 0, 0, 1, xghost, xghost, Geom(lev).periodicity());
 
 #ifdef _OPENMP
 #    pragma omp parallel if (Gpu::notInLaunchRegion())
