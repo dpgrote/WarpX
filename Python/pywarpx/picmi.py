@@ -61,7 +61,7 @@ class Species(picmistandard.PICMI_Species):
                 else:
                     self.charge = self.charge_state*constants.q_e
             # Match a string of the format '#nXx', with the '#n' optional isotope number.
-            m = re.match('(?P<iso>#[\d+])*(?P<sym>[A-Za-z]+)', self.particle_type)
+            m = re.match(r'(?P<iso>#[\d+])*(?P<sym>[A-Za-z]+)', self.particle_type)
             if m is not None:
                 element = periodictable.elements.symbol(m['sym'])
                 if m['iso'] is not None:
@@ -82,6 +82,7 @@ class Species(picmistandard.PICMI_Species):
 
         # For the relativistic electrostatic solver
         self.self_fields_required_precision = kw.pop('warpx_self_fields_required_precision', None)
+        self.self_fields_absolute_tolerance = kw.pop('warpx_self_fields_absolute_tolerance', None)
         self.self_fields_max_iters = kw.pop('warpx_self_fields_max_iters', None)
         self.self_fields_verbosity = kw.pop('warpx_self_fields_verbosity', None)
         self.save_previous_position = kw.pop('warpx_save_previous_position', None)
@@ -126,6 +127,7 @@ class Species(picmistandard.PICMI_Species):
                                              initialize_self_fields = int(initialize_self_fields),
                                              boost_adjust_transverse_positions = self.boost_adjust_transverse_positions,
                                              self_fields_required_precision = self.self_fields_required_precision,
+                                             self_fields_absolute_tolerance = self.self_fields_absolute_tolerance,
                                              self_fields_max_iters = self.self_fields_max_iters,
                                              self_fields_verbosity = self.self_fields_verbosity,
                                              save_particles_at_xlo = self.save_particles_at_xlo,
@@ -623,6 +625,7 @@ class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
         self.relativistic = kw.pop('warpx_relativistic', False)
         self.average_over_y = kw.pop('warpx_average_over_y', None)
         self.do_1d_tridiag = kw.pop('warpx_do_1d_tridiag', None)
+        self.absolute_tolerance = kw.pop('warpx_absolute_tolerance', None)
         self.self_fields_verbosity = kw.pop('warpx_self_fields_verbosity', None)
 
     def initialize_inputs(self):
@@ -634,6 +637,7 @@ class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
         else:
             pywarpx.warpx.do_electrostatic = 'labframe'
             pywarpx.warpx.self_fields_required_precision = self.required_precision
+            pywarpx.warpx.self_fields_absolute_tolerance = self.absolute_tolerance
             pywarpx.warpx.self_fields_max_iters = self.maximum_iterations
             pywarpx.warpx.average_over_y = self.average_over_y
             pywarpx.warpx.do_1d_tridiag = self.do_1d_tridiag
