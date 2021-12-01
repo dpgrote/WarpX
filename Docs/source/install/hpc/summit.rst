@@ -74,8 +74,13 @@ We use the following modules and environments on the system (``$HOME/warpx.profi
 
    # optional: for Python bindings or libEnsemble
    module load python/3.8.10
-   module load openblas/0.3.5-omp  # numpy; same as for blaspp & lapackpp
    module load freetype/2.10.4     # matplotlib
+
+   # dependencies for numpy, blaspp & lapackpp
+   module load openblas/0.3.5-omp
+   export BLAS=${OLCF_OPENBLAS_ROOT}/lib/libopenblas.so
+   export LAPACK=${OLCF_OPENBLAS_ROOT}/lib/libopenblas.so
+
    if [ -d "$HOME/sw/venvs/warpx" ]
    then
      source $HOME/sw/venvs/warpx/bin/activate
@@ -115,8 +120,6 @@ Optionally, download and install Python packages for :ref:`PICMI <usage-picmi>` 
 
 .. code-block:: bash
 
-   export BLAS=$OLCF_OPENBLAS_ROOT/lib/libopenblas.so
-   export LAPACK=$OLCF_OPENBLAS_ROOT/lib/libopenblas.so
    python3 -m pip install --user --upgrade pip
    python3 -m pip install --user virtualenv
    python3 -m pip cache purge
@@ -231,6 +234,52 @@ parameters provided good performance:
 * **Sixteen `64x64x64` grids per MPI rank** (with default tiling in WarpX, this
   results in ~49 tiles per OpenMP thread)
 
+.. _building-summit-io-performance:
+
+I/O Performance Tuning
+----------------------
+
+.. _building-summit-large-blocks:
+
+GPFS Large Block I/O
+^^^^^^^^^^^^^^^^^^^^
+
+Setting ``IBM_largeblock_io`` to ``true`` disables data shipping, saving overhead when writing/reading large contiguous I/O chunks.
+
+.. code-block:: bash
+
+   export IBM_largeblock_io=true
+
+.. _building-summit-romio-hints:
+
+ROMIO MPI-IO Hints
+^^^^^^^^^^^^^^^^^^
+
+You might notice some parallel HDF5 performance improvements on Summit by setting the appropriate ROMIO hints for MPI-IO operations.
+
+.. code-block:: bash
+
+   export OMPI_MCA_io=romio321
+   export ROMIO_HINTS=./romio-hints
+
+You can generate the ``romio-hints`` by issuing the following command. Remember to change the number of ``cb_nodes`` to match the number of compute nodes you are using (example here: ``64``).
+
+.. code-block:: bash
+
+   cat > romio-hints << EOL
+   romio_cb_write enable
+   romio_ds_write enable
+   cb_buffer_size 16777216
+   cb_nodes 64
+   EOL
+
+The ``romio-hints`` file contains pairs of key-value hints to enable and tune collective
+buffering of MPI-IO operations. As Summit's Alpine file system uses a 16MB block size,
+you should set the collective buffer size to 16GB and tune the number of aggregators
+(``cb_nodes``) to the number of compute nodes you are using, i.e., one aggregator per node.
+
+Further details are available at `Summit's documentation page <https://docs.olcf.ornl.gov/systems/summit_user_guide.html#slow-performance-using-parallel-hdf5-resolved-march-12-2019>`__.
+
 .. _building-summit-issues:
 
 Known System Issues
@@ -292,7 +341,8 @@ Known System Issues
 
 .. warning::
 
-   Related to the above issue, libfabric 1.6+ introduced a couple of breaking changes that break ADIOS2 SST (staging/streaming) workflows.
+   Related to the above issue, the fabric selection in ADIOS2 was designed for libfabric 1.6.
+   With newer versions of libfabric, a workaround is needed to guide the selection of a functional fabric for RDMA support.
    Details are discussed in `ADIOS2 issue #2887 <https://github.com/ornladios/ADIOS2/issues/2887>`__.
 
    The following environment variables can be set as work-arounds, when working with ADIOS2 SST:
