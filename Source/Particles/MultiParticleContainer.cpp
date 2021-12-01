@@ -871,9 +871,9 @@ MultiParticleContainer::ReplenishPlasma ()
     if (pc->do_tiling && Gpu::notInLaunchRegion()) {
         info.EnableTiling(pc->tile_size);
     }
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     info.SetDynamic(true);
-#pragma omp parallel if (not WarpX::serialize_ics)
+#pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
     for (MFIter mfi = pc->MakeMFIter(lev, info); mfi.isValid(); ++mfi)
     {
