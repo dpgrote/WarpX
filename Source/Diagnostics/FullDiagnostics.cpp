@@ -62,7 +62,6 @@ FullDiagnostics::InitializeParticleBuffer ()
         }
     }
     // Initialize one ParticleDiag per species requested
-    m_output_species.resize(m_num_buffers);
     for (int i_buffer = 0; i_buffer < m_num_buffers; ++i_buffer) {
         for (auto const& species : m_output_species_names){
             const int idx = mpc.getSpeciesID(species);
@@ -362,7 +361,7 @@ FullDiagnostics::InitializeBufferData (int i_buffer, int lev ) {
             diag_dom.setLo( idim, warpx.Geom(lev).ProbLo(idim) +
                 ba.getCellCenteredBox(0).smallEnd(idim) * warpx.Geom(lev).CellSize(idim));
             diag_dom.setHi( idim, warpx.Geom(lev).ProbLo(idim) +
-                (ba.getCellCenteredBox( ba.size()-1 ).bigEnd(idim) + 1) * warpx.Geom(lev).CellSize(idim));
+                (ba.getCellCenteredBox( static_cast<int>(ba.size())-1 ).bigEnd(idim) + 1) * warpx.Geom(lev).CellSize(idim));
         }
     }
 
@@ -376,7 +375,7 @@ FullDiagnostics::InitializeBufferData (int i_buffer, int lev ) {
     // Allocate output MultiFab for diagnostics. The data will be stored at cell-centers.
     int ngrow = (m_format == "sensei" || m_format == "ascent") ? 1 : 0;
     // The zero is hard-coded since the number of output buffers = 1 for FullDiagnostics
-    m_mf_output[i_buffer][lev] = amrex::MultiFab(ba, dmap, m_varnames.size(), ngrow);
+    m_mf_output[i_buffer][lev] = amrex::MultiFab(ba, dmap, static_cast<int>(m_varnames.size()), ngrow);
 
 
     if (lev == 0) {
@@ -410,7 +409,8 @@ FullDiagnostics::InitializeFieldFunctors (int lev)
 
     m_all_field_functors[lev].resize( m_varnames.size() );
     // Fill vector of functors for all components except individual cylindrical modes.
-    for (int comp=0, n=m_all_field_functors[lev].size(); comp<n; comp++){
+    const auto n = static_cast<int>(m_all_field_functors[lev].size());
+    for (int comp=0; comp<n; comp++){
         if        ( m_varnames[comp] == "Ex" ){
             m_all_field_functors[lev][comp] = std::make_unique<CellCenterFunctor>(warpx.get_pointer_Efield_aux(lev, 0), lev, m_crse_ratio);
         } else if ( m_varnames[comp] == "Ey" ){
@@ -465,8 +465,8 @@ FullDiagnostics::PrepareFieldDataForOutput ()
     // First, make sure all guard cells are properly filled
     // Probably overkill/unnecessary, but safe and shouldn't happen often !!
     auto & warpx = WarpX::GetInstance();
-    warpx.FillBoundaryE(warpx.getngE());
-    warpx.FillBoundaryB(warpx.getngE());
+    warpx.FillBoundaryE(warpx.getngEB());
+    warpx.FillBoundaryB(warpx.getngEB());
     warpx.UpdateAuxilaryData();
     warpx.FillBoundaryAux(warpx.getngUpdateAux());
 
@@ -477,7 +477,7 @@ FullDiagnostics::PrepareFieldDataForOutput ()
     // The level is set to 0, because the whole physical domain of the simulation is used
     // to set the domain dimensions for the output particle container.
     for (int i_buffer = 0; i_buffer < m_num_buffers; ++i_buffer) {
-        for (int i = 0; i < m_output_species[i_buffer].size(); ++i) {
+        for (int i = 0; i < m_output_species.at(i_buffer).size(); ++i) {
             m_output_species[i_buffer][i].m_diag_domain = m_geom_output[i_buffer][0].ProbDomain();
         }
     }

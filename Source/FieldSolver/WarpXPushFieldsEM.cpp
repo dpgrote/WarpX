@@ -55,8 +55,30 @@ using namespace amrex;
 #ifdef WARPX_USE_PSATD
 namespace {
 
-    void
-    ForwardTransformVect (
+    void ForwardTransformVect (
+        const int lev,
+#ifdef WARPX_DIM_RZ
+        SpectralSolverRZ& solver,
+#else
+        SpectralSolver& solver,
+#endif
+        std::array<std::unique_ptr<amrex::MultiFab>,3>& vector_field,
+        const int compx, const int compy, const int compz,
+        const amrex::IntVect& stag_x, const amrex::IntVect& stag_y, const amrex::IntVect& stag_z)
+    {
+#ifdef WARPX_DIM_RZ
+        amrex::ignore_unused(stag_x, stag_y, stag_z);
+        solver.ForwardTransform(lev, *vector_field[0], compx, *vector_field[1], compy);
+        solver.ForwardTransform(lev, *vector_field[2], compz);
+#else
+        solver.ForwardTransform(lev, *vector_field[0], compx, stag_x);
+        solver.ForwardTransform(lev, *vector_field[1], compy, stag_y);
+        solver.ForwardTransform(lev, *vector_field[2], compz, stag_z);
+#endif
+    }
+
+    AMREX_FORCE_INLINE
+    void ForwardTransformVect (
         const int lev,
 #ifdef WARPX_DIM_RZ
         SpectralSolverRZ& solver,
@@ -66,13 +88,10 @@ namespace {
         std::array<std::unique_ptr<amrex::MultiFab>,3>& vector_field,
         const int compx, const int compy, const int compz)
     {
-#ifdef WARPX_DIM_RZ
-        solver.ForwardTransform(lev, *vector_field[0], compx, *vector_field[1], compy);
-#else
-        solver.ForwardTransform(lev, *vector_field[0], compx);
-        solver.ForwardTransform(lev, *vector_field[1], compy);
-#endif
-        solver.ForwardTransform(lev, *vector_field[2], compz);
+        ForwardTransformVect(lev, solver, vector_field, compx, compy, compz,
+                             (*vector_field[0]).ixType().toIntVect(),
+                             (*vector_field[1]).ixType().toIntVect(),
+                             (*vector_field[2]).ixType().toIntVect());
     }
 
     void
@@ -134,7 +153,7 @@ WarpX::PSATDBackwardTransformEB ()
     // Damp the fields in the guard cells
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        DampFieldsInGuards(Efield_fp[lev], Bfield_fp[lev]);
+        DampFieldsInGuards(lev, Efield_fp[lev], Bfield_fp[lev]);
     }
 }
 
@@ -190,7 +209,7 @@ WarpX::PSATDBackwardTransformF ()
     // Damp the field in the guard cells
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        DampFieldsInGuards(F_fp[lev]);
+        DampFieldsInGuards(lev, F_fp[lev]);
     }
 }
 
@@ -228,7 +247,7 @@ WarpX::PSATDBackwardTransformG ()
     // Damp the field in the guard cells
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        DampFieldsInGuards(G_fp[lev]);
+        DampFieldsInGuards(lev, G_fp[lev]);
     }
 }
 
@@ -243,11 +262,41 @@ WarpX::PSATDForwardTransformJ ()
 
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        ForwardTransformVect(lev, *spectral_solver_fp[lev], current_fp[lev], idx_jx, idx_jy, idx_jz);
+        // With Vay's deposition, J stores a temporary current (D) that is later modified
+        // in Fourier space: its staggering matches that of rho and not J
+        amrex::IntVect jx_stag =
+            (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+            WarpX::m_rho_nodal_flag : current_fp[lev][0]->ixType().toIntVect();
+
+        amrex::IntVect jy_stag =
+            (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+            WarpX::m_rho_nodal_flag : current_fp[lev][1]->ixType().toIntVect();
+
+        amrex::IntVect jz_stag =
+            (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+            WarpX::m_rho_nodal_flag : current_fp[lev][2]->ixType().toIntVect();
+
+        ForwardTransformVect(lev, *spectral_solver_fp[lev], current_fp[lev],
+                             idx_jx, idx_jy, idx_jz, jx_stag, jy_stag, jz_stag);
 
         if (spectral_solver_cp[lev])
         {
-            ForwardTransformVect(lev, *spectral_solver_cp[lev], current_cp[lev], idx_jx, idx_jy, idx_jz);
+            // With Vay's deposition, J stores a temporary current (D) that is later modified
+            // in Fourier space: its staggering matches that of rho and not J
+            jx_stag =
+                (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+                WarpX::m_rho_nodal_flag : current_cp[lev][0]->ixType().toIntVect();
+
+            jy_stag =
+                (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+                WarpX::m_rho_nodal_flag : current_cp[lev][1]->ixType().toIntVect();
+
+            jz_stag =
+                (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay) ?
+                WarpX::m_rho_nodal_flag : current_cp[lev][2]->ixType().toIntVect();
+
+            ForwardTransformVect(lev, *spectral_solver_cp[lev], current_cp[lev],
+                                 idx_jx, idx_jy, idx_jz, jx_stag, jy_stag, jz_stag);
         }
     }
 
@@ -266,6 +315,38 @@ WarpX::PSATDForwardTransformJ ()
         }
     }
 #endif
+}
+
+void WarpX::PSATDBackwardTransformJ ()
+{
+    SpectralFieldIndex Idx;
+    int idx_jx, idx_jy, idx_jz;
+
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        Idx = spectral_solver_fp[lev]->m_spectral_index;
+
+        idx_jx = static_cast<int>(Idx.Jx);
+        idx_jy = static_cast<int>(Idx.Jy);
+        idx_jz = static_cast<int>(Idx.Jz);
+
+        auto& current = (WarpX::do_current_centering) ? current_fp_nodal : current_fp;
+
+        BackwardTransformVect(lev, *spectral_solver_fp[lev], current[lev], idx_jx, idx_jy, idx_jz);
+
+        if (spectral_solver_cp[lev])
+        {
+            Idx = spectral_solver_cp[lev]->m_spectral_index;
+
+            idx_jx = static_cast<int>(Idx.Jx);
+            idx_jy = static_cast<int>(Idx.Jy);
+            idx_jz = static_cast<int>(Idx.Jz);
+
+            // Current centering is not implemented with mesh refinement, so we do not yet need to
+            // distinguish between current_cp and current_cp_nodal, as for the fine patch currents
+            BackwardTransformVect(lev, *spectral_solver_cp[lev], current_cp[lev], idx_jx, idx_jy, idx_jz);
+        }
+    }
 }
 
 void
@@ -301,6 +382,32 @@ WarpX::PSATDForwardTransformRho (const int icomp, const int dcomp)
         }
     }
 #endif
+}
+
+void WarpX::PSATDCurrentCorrection ()
+{
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        spectral_solver_fp[lev]->CurrentCorrection();
+
+        if (spectral_solver_cp[lev])
+        {
+            spectral_solver_cp[lev]->CurrentCorrection();
+        }
+    }
+}
+
+void WarpX::PSATDVayDeposition ()
+{
+    for (int lev = 0; lev <= finest_level; ++lev)
+    {
+        spectral_solver_fp[lev]->VayDeposition();
+
+        if (spectral_solver_cp[lev])
+        {
+            spectral_solver_cp[lev]->VayDeposition();
+        }
+    }
 }
 
 void
@@ -421,6 +528,22 @@ WarpX::PushPSATD ()
     {
         PSATDForwardTransformRho(0,0); // rho old
         PSATDForwardTransformRho(1,1); // rho new
+    }
+
+    // Correct the current in Fourier space so that the continuity equation is satisfied, and
+    // transform back to real space so that the current correction is reflected in the diagnostics
+    if (WarpX::current_correction)
+    {
+        PSATDCurrentCorrection();
+        PSATDBackwardTransformJ();
+    }
+
+    // Compute the current in Fourier space according to the Vay deposition scheme, and
+    // transform back to real space so that the Vay deposition is reflected in the diagnostics
+    if (WarpX::current_deposition_algo == CurrentDepositionAlgo::Vay)
+    {
+        PSATDVayDeposition();
+        PSATDBackwardTransformJ();
     }
 
 #ifdef WARPX_DIM_RZ
@@ -556,6 +679,19 @@ WarpX::EvolveE (int lev, PatchType patch_type, amrex::Real a_dt)
 
     ApplyEfieldBoundary(lev, patch_type);
 
+    // ECTRhofield must be recomputed at the very end of the Efield update to ensure
+    // that ECTRhofield is consistent with Efield
+#ifdef AMREX_USE_EB
+    if (WarpX::maxwell_solver_id == MaxwellSolverAlgo::ECT) {
+        if (patch_type == PatchType::fine) {
+            m_fdtd_solver_fp[lev]->EvolveECTRho(Efield_fp[lev], m_edge_lengths[lev],
+                                                m_face_areas[lev], ECTRhofield[lev], lev);
+        } else {
+            m_fdtd_solver_cp[lev]->EvolveECTRho(Efield_cp[lev], m_edge_lengths[lev],
+                                                m_face_areas[lev], ECTRhofield[lev], lev);
+        }
+    }
+#endif
 }
 
 
@@ -675,8 +811,8 @@ void
 WarpX::MacroscopicEvolveE (int lev, PatchType patch_type, amrex::Real a_dt) {
     if (patch_type == PatchType::fine) {
         m_fdtd_solver_fp[lev]->MacroscopicEvolveE( Efield_fp[lev], Bfield_fp[lev],
-                                             current_fp[lev], a_dt,
-                                             m_macroscopic_properties);
+                                             current_fp[lev], m_edge_lengths[lev],
+                                             a_dt, m_macroscopic_properties);
     }
     else {
         amrex::Abort("Macroscopic EvolveE is not implemented for lev > 0, yet.");
@@ -703,7 +839,8 @@ WarpX::MacroscopicEvolveE (int lev, PatchType patch_type, amrex::Real a_dt) {
 }
 
 void
-WarpX::DampFieldsInGuards(std::array<std::unique_ptr<amrex::MultiFab>,3>& Efield,
+WarpX::DampFieldsInGuards(const int lev,
+                          std::array<std::unique_ptr<amrex::MultiFab>,3>& Efield,
                           std::array<std::unique_ptr<amrex::MultiFab>,3>& Bfield) {
 
     // Loop over dimensions
@@ -753,7 +890,7 @@ WarpX::DampFieldsInGuards(std::array<std::unique_ptr<amrex::MultiFab>,3>& Efield
                 const int tbz_bigEnd_d = tbz.bigEnd(dampdir);
 
                 // Box for the whole simulation domain
-                amrex::Box const& domain = Geom(0).Domain();
+                amrex::Box const& domain = Geom(lev).Domain();
                 int const nn_domain = domain.bigEnd(dampdir);
 
                 // Set the tileboxes so that they only cover the lower/upper half of the guard cells
@@ -800,7 +937,7 @@ WarpX::DampFieldsInGuards(std::array<std::unique_ptr<amrex::MultiFab>,3>& Efield
     }
 }
 
-void WarpX::DampFieldsInGuards(std::unique_ptr<amrex::MultiFab>& mf)
+void WarpX::DampFieldsInGuards(const int lev, std::unique_ptr<amrex::MultiFab>& mf)
 {
     // Loop over dimensions
     for (int dampdir = 0; dampdir < AMREX_SPACEDIM; dampdir++)
@@ -827,7 +964,7 @@ void WarpX::DampFieldsInGuards(std::unique_ptr<amrex::MultiFab>& mf)
                 const int tx_bigEnd_d = tx.bigEnd(dampdir);
 
                 // Box for the whole simulation domain
-                amrex::Box const& domain = Geom(0).Domain();
+                amrex::Box const& domain = Geom(lev).Domain();
                 int const nn_domain = domain.bigEnd(dampdir);
 
                 // Set the tilebox so that it only covers the lower/upper half of the guard cells
