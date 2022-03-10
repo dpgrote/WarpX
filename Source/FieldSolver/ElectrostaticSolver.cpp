@@ -842,9 +842,8 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
 
         auto field_boundary_hi0 = WarpX::field_boundary_hi[0];
         int nx_solve_max = nx_total - 1;
-        if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
-            // Floating mean Neumann
-            // Solve for the last point
+        if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
+            // Solve for the point on the boundary
             nx_solve_max = nx_total;
         }
 
@@ -896,8 +895,7 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                         } else {
                             if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
                                 phi1d_arr(i,0,0) = (phi1d_arr(nx_solve_max+1,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                            } else if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
-                                // Neumann BC
+                            } else if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
                                 phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-2._rt)*phi1d_arr(i-1,0,0))/diag;
                             }
                         }
@@ -924,7 +922,7 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                     }
                 }
             );
-            if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
+            if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
                 phi1d_arr(nx_total+1,0,0) = phi1d_arr(nx_total-1,0,0);
             }
 
@@ -999,8 +997,8 @@ void ElectrostaticSolver::BoundaryHandler::definePhiBCs ( )
                 lobc[idim] = LinOpBCType::Neumann;
                 dirichlet_flag[idim*2] = false;
             }
-            else if ( WarpX::field_boundary_lo[idim] == FieldBoundaryType::Floating ) {
-                lobc[idim] = LinOpBCType::Dirichlet;
+            else if ( WarpX::field_boundary_lo[idim] == FieldBoundaryType::Neumann ) {
+                lobc[idim] = LinOpBCType::Neumann;
                 dirichlet_flag[idim*2] = false;
             }
             else {
@@ -1018,8 +1016,8 @@ void ElectrostaticSolver::BoundaryHandler::definePhiBCs ( )
                 hibc[idim] = LinOpBCType::Neumann;
                 dirichlet_flag[idim*2+1] = false;
             }
-            else if ( WarpX::field_boundary_hi[idim] == FieldBoundaryType::Floating ) {
-                hibc[idim] = LinOpBCType::Dirichlet;
+            else if ( WarpX::field_boundary_hi[idim] == FieldBoundaryType::Neumann ) {
+                hibc[idim] = LinOpBCType::Neumann;
                 dirichlet_flag[idim*2+1] = false;
             }
             else {
