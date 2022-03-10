@@ -839,6 +839,14 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
         const amrex::Real xmax = Geom(lev).ProbHi(0);
         const int nx_total = static_cast<int>( (xmax - xmin)/dx[0] + 0.5_rt );
 
+        auto field_boundary_hi0 = WarpX::field_boundary_hi[0];
+        int nx_solve_max = nx_total - 1;
+        if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
+            // Floating mean Neumann
+            // Solve for the last point
+            nx_solve_max = nx_total;
+        }
+
         // Create a 1-D MultiFab that covers all of x. The tridiag solve
         // will be done in this MultiFab and then copied out afterwards.
         const amrex::IntVect lo_total(AMREX_D_DECL(-1,0,0));
@@ -869,46 +877,44 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
             const auto& zwork1d_arr = zwork1d_mf.array(mfi);
             const auto& rho1d_arr = rho1d_mf.array(mfi);
 
-            // With Floating, the value of phi one cell inside the domain is
-            // copied into the boundaries of the work array.
-            if ( WarpX::field_boundary_lo[0] == FieldBoundaryType::Floating ) {
-                phi1d_arr(0,0,0) = phi1d_arr(1,0,0);
-            }
-            if ( WarpX::field_boundary_hi[0] == FieldBoundaryType::Floating ) {
-                phi1d_arr(nx_total,0,0) = phi1d_arr(nx_total-1,0,0);
-            }
-
             amrex::Box box_total0 = mfi.tilebox();
             box_total0.setBig(1, 0); // Needed since with nodal, ny = 2
 
             amrex::ParallelFor( box_total0,
                 [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
-                    amrex::Real diag = zwork1d_arr(nx_total,0,0);
+                    amrex::Real diag = zwork1d_arr(nx_solve_max+1,0,0);
                     if (i == 1) {
                         diag = 2._rt;
                         phi1d_arr(1,0,0) = (phi1d_arr(0,0,0) + rho1d_arr(1,0,0))/diag;
                     }
-                    else if (i > 1 && i < nx_total) {
+                    else if (i > 1 && i <= nx_solve_max) {
                         zwork1d_arr(i,0,0) = -1._rt/diag;
                         diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
-                        if (i < nx_total-1) {
+                        if (i < nx_solve_max) {
                             phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
                         } else {
-                            phi1d_arr(i,0,0) = (phi1d_arr(nx_total,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
+                            if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
+                                phi1d_arr(i,0,0) = (phi1d_arr(nx_solve_max+1,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
+                            } else if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
+                                // Neumann BC
+                                phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-2._rt)*phi1d_arr(i-1,0,0))/diag;
+                            }
                         }
                     }
-                    zwork1d_arr(nx_total,0,0) = diag;
+                    zwork1d_arr(nx_solve_max+1,0,0) = diag;
                 }
             );
 
             amrex::ParallelFor( box_total0,
                 [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
-                    const int im = nx_total - i;
-                    if (im == nx_total-1) {
-                        // Extrapolate assuming Dirichlet boundary
-                        phi1d_arr(nx_total+1,0,0) = 2._rt*phi1d_arr(nx_total,0,0) - phi1d_arr(nx_total-1,0,0);
+                    const int im = nx_solve_max + 1 - i;
+                    if (im == nx_total+1) {
+                        if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
+                            // Extrapolate assuming Dirichlet boundary
+                            phi1d_arr(nx_total+1,0,0) = 2._rt*phi1d_arr(nx_total,0,0) - phi1d_arr(nx_total-1,0,0);
+                        }
                     }
-                    else if (im > 0 && im < nx_total-1) {
+                    else if (im > 0 && im < nx_solve_max) {
                         phi1d_arr(im,0,0) = phi1d_arr(im,0,0) - zwork1d_arr(im+1,0,0)*phi1d_arr(im+1,0,0);
                     }
                     else if (im == 0) {
@@ -917,6 +923,9 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                     }
                 }
             );
+            if ( field_boundary_hi0 == FieldBoundaryType::Floating ) {
+                phi1d_arr(nx_total+1,0,0) = phi1d_arr(nx_total-1,0,0);
+            }
 
             /* amrex::Gpu::streamSynchronize(); */
         }
