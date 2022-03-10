@@ -887,17 +887,22 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                         diag = 2._rt;
                         phi1d_arr(1,0,0) = (phi1d_arr(0,0,0) + rho1d_arr(1,0,0))/diag;
                     }
-                    else if (i > 1 && i <= nx_solve_max) {
+                    else if (i > 1 && i < nx_solve_max) {
                         zwork1d_arr(i,0,0) = -1._rt/diag;
                         diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
                         if (i < nx_solve_max) {
                             phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                        } else {
-                            if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
-                                phi1d_arr(i,0,0) = (phi1d_arr(nx_solve_max+1,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                            } else if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
-                                phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-2._rt)*phi1d_arr(i-1,0,0))/diag;
-                            }
+                        }
+                    }
+                    else if (i == nx_solve_max) {
+                        if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
+                            zwork1d_arr(i,0,0) = -1._rt/diag;
+                            diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
+                            phi1d_arr(i,0,0) = (phi1d_arr(nx_solve_max+1,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
+                        } else if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
+                            zwork1d_arr(i,0,0) = -2._rt/diag;
+                            diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
+                            phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
                         }
                     }
                     zwork1d_arr(nx_solve_max+1,0,0) = diag;
