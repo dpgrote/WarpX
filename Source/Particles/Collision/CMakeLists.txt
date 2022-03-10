@@ -3,8 +3,8 @@ target_sources(WarpX
     CollisionHandler.cpp
     CollisionBase.cpp
     ThermalizationCollision.cpp
-    BackgroundMCCCollision.cpp
-    MCCProcess.cpp
 )
 
 add_subdirectory(BinaryCollision)
+add_subdirectory(BackgroundMCC)
+add_subdirectory(BackgroundStopping)
