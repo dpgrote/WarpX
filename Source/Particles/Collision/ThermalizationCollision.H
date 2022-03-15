@@ -59,7 +59,7 @@ public:
      * @param mypc Container of species involved
      *
      */
-    void doCollisions (amrex::Real cur_time, MultiParticleContainer* mypc) override;
+    void doCollisions (amrex::Real cur_time, amrex::Real dt, MultiParticleContainer* mypc) override;
 
 private:
 

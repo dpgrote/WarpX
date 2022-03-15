@@ -43,11 +43,8 @@ ThermalizationCollision::ThermalizationCollision (std::string const collision_na
 }
 
 void
-ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContainer* mypc)
+ThermalizationCollision::doCollisions (amrex::Real cur_time, amrex::Real dt, MultiParticleContainer* mypc)
 {
-    const amrex::Real dt = WarpX::GetInstance().getdt(0);
-    if ( int(std::floor(cur_time/dt)) % m_ndt != 0 ) return;
-
     if (m_mean_free_path == 0._rt) {
         return;
     }
@@ -58,12 +55,9 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
 
         amrex::Real const mean_free_path = m_mean_free_path;
         amrex::Real const thermal_velocity = std::sqrt(m_thermal_temperature*PhysConst::q_e/species.getMass());
-        int const ndt = m_ndt;
 
         // Loop over refinement levels
         for (int lev = 0; lev <= species.finestLevel(); ++lev){
-
-            amrex::Real const dt_lev = WarpX::GetInstance().getdt(lev);
 
 #ifdef AMREX_USE_OMP
 #pragma omp parallel
@@ -85,7 +79,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
                         [=] AMREX_GPU_DEVICE (int ip, amrex::RandomEngine const& engine) noexcept
                         {
                             // Ignore the gamma factor
-                            if (thermal_velocity*dt_lev*ndt/mean_free_path > amrex::Random(engine)) {
+                            if (thermal_velocity*dt/mean_free_path > amrex::Random(engine)) {
                                 ux[ip] = amrex::RandomNormal(0._rt, thermal_velocity, engine);
                                 if (use_full_velocity) {
                                     uy[ip] = amrex::RandomNormal(0._rt, thermal_velocity, engine);
@@ -106,7 +100,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
                             {
                                 // Ignore the gamma factor since gamma ~ 1
                                 amrex::ParticleReal v = std::sqrt(ux[ip]*ux[ip] + uy[ip]*uy[ip] + uz[ip]*uz[ip]);
-                                if (v*dt_lev*ndt/mean_free_path > amrex::Random(engine)) {
+                                if (v*dt/mean_free_path > amrex::Random(engine)) {
                                     amrex::ParticleReal const rr = amrex::Random(engine);
                                     amrex::ParticleReal const vv = invertv3gaussian(rr);
                                     amrex::ParticleReal const vnew = std::sqrt(2._rt)*thermal_velocity*vv;
@@ -126,7 +120,7 @@ ThermalizationCollision::doCollisions (amrex::Real cur_time, MultiParticleContai
                             {
                                 // Ignore the gamma factor since gamma ~ 1
                                 amrex::ParticleReal v = std::abs(ux[ip]);
-                                if (v*dt_lev*ndt/mean_free_path > amrex::Random(engine)) {
+                                if (v*dt/mean_free_path > amrex::Random(engine)) {
                                     // (1 - rand) is used since rand includes 0, avoiding 1/0.
                                     // rand does not include 1 so (1-rand) will never be 0.
                                     amrex::ParticleReal const uxrand = 1._rt - amrex::Random(engine);
