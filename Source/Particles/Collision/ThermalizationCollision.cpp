@@ -43,7 +43,7 @@ ThermalizationCollision::ThermalizationCollision (std::string const collision_na
 }
 
 void
-ThermalizationCollision::doCollisions (amrex::Real cur_time, amrex::Real dt, MultiParticleContainer* mypc)
+ThermalizationCollision::doCollisions (amrex::Real /*cur_time*/, amrex::Real dt, MultiParticleContainer* mypc)
 {
     if (m_mean_free_path == 0._rt) {
         return;

@@ -6,7 +6,7 @@
  */
 #include "CollisionHandler.H"
 
-#include "ThermalizationCollision.H"
+#include "Particles/Collision/ThermalizationCollision.H"
 #include "Particles/Collision/BackgroundMCC/BackgroundMCCCollision.H"
 #include "Particles/Collision/BackgroundStopping/BackgroundStopping.H"
 #include "Particles/Collision/BinaryCollision/Coulomb/PairWiseCoulombCollisionFunc.H"
