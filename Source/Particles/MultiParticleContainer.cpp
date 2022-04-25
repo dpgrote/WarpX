@@ -843,6 +843,8 @@ MultiParticleContainer::ReplenishPlasma ()
     scale_fac = dx[0]*dx[1]*dx[2]/num_ppc;
 #elif AMREX_SPACEDIM==2
     scale_fac = dx[0]*dx[1]/num_ppc;
+#elif AMREX_SPACEDIM==1
+    scale_fac = dx[0]/num_ppc;
 #endif
 
     const long totalnumberofparticles = pc->TotalNumberOfParticles();
@@ -915,6 +917,10 @@ MultiParticleContainer::ReplenishPlasma ()
             particle_x.push_back(pos_x);
             particle_y.push_back(0.);
             particle_z.push_back(pos_y);
+#elif (AMREX_SPACEDIM == 1)
+            particle_x.push_back(pos_x);
+            particle_y.push_back(0.);
+            particle_z.push_back(0.);
 #endif
 
             particle_w.push_back(weight);
@@ -973,6 +979,10 @@ MultiParticleContainer::ReplenishPlasma ()
                 amrex::Real pos_x = particle_x[ip];
                 amrex::Real pos_y = particle_z[ip];
                 amrex::Real pos_z = 0.;
+#elif (AMREX_SPACEDIM == 1)
+                amrex::Real pos_x = particle_x[ip];
+                amrex::Real pos_y = 0.;
+                amrex::Real pos_z = 0.;
 #endif
                 amrex::XDim3 u = inj_mom->getMomentum(pos_x, pos_y, pos_z, engine);
 
@@ -986,7 +996,9 @@ MultiParticleContainer::ReplenishPlasma ()
                 pa[PIdx::uz][ip] = u.z*PhysConst::c;
 
                 p.pos(0) = pos_x;
+#if (AMREX_SPACEDIM >= 2)
                 p.pos(1) = pos_y;
+#endif
 #if (AMREX_SPACEDIM == 3)
                 p.pos(2) = pos_z;
 #endif
