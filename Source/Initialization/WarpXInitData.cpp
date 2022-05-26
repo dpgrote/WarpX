@@ -119,6 +119,20 @@ WarpX::PrintMainPICparameters ()
     amrex::Print() << "--------------------------- MAIN EM PIC PARAMETERS ----------------------------\n";
     amrex::Print() << "-------------------------------------------------------------------------------\n";
 
+    // print warpx build information
+    if constexpr (std::is_same<Real, float>::value) {
+      amrex::Print() << "Precision:            | SINGLE" << "\n";
+    }
+    else {
+      amrex::Print() << "Precision:            | DOUBLE" << "\n";
+    }
+    if constexpr (std::is_same<ParticleReal, float>::value) {
+      amrex::Print() << "Particle precision:   | SINGLE" << "\n";
+    }
+    else {
+      amrex::Print() << "Particle precision:   | DOUBLE" << "\n";
+    }
+
     // Print geometry dimensionality
     amrex::ParmParse pp_geometry("geometry");
     std::string dims;
@@ -475,6 +489,7 @@ WarpX::InitPML ()
                              do_multi_J,
                              do_pml_dive_cleaning, do_pml_divb_cleaning,
                              guard_cells.ng_FieldSolver.max(),
+                             v_particle_pml,
                              do_pml_Lo[0], do_pml_Hi[0]);
 #endif
 
@@ -506,6 +521,7 @@ WarpX::InitPML ()
                                    do_moving_window, pml_has_particles, do_pml_in_domain,
                                    do_multi_J, do_pml_dive_cleaning, do_pml_divb_cleaning,
                                    guard_cells.ng_FieldSolver.max(),
+                                   v_particle_pml,
                                    do_pml_Lo[lev], do_pml_Hi[lev]);
         }
     }
