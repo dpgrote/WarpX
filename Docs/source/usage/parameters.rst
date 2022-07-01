@@ -308,6 +308,7 @@ Domain Boundary Conditions
 
 * ``boundary.particle_lo`` and ``boundary.particle_hi`` (`2 strings` for 2D, `3 strings` for 3D, `absorbing` by default)
     Options are:
+
     * ``Absorbing``: Particles leaving the boundary will be deleted.
 
     * ``Periodic``: Particles leaving the boundary will re-enter from the opposite boundary. The field boundary condition must be consistenly set to periodic and both lower and upper boundaries must be periodic.
@@ -1404,10 +1405,11 @@ WarpX provides several particle collions models, using varying degrees of approx
       When the RZ mode is used, `warpx.n_rz_azimuthal_modes` must be set to 1 at the moment,
       since the current implementation of the collision module assumes axisymmetry.
     - ``background_mcc`` for collisions between particles and a neutral background.
-      This is a non-relativistic Monte Carlo treatment for particles colliding
-      with a neutral, uniform background gas. The implementation follows the so-called
+      This is a relativistic Monte Carlo treatment for particles colliding
+      with a neutral background gas. The implementation follows the so-called
       null collision strategy discussed for example in `Birdsall (IEEE Transactions on
       Plasma Science, vol. 19, no. 2, pp. 65-85, 1991) <https://ieeexplore.ieee.org/document/106800>`_.
+      See also :ref:`collisions section <theory-collisions>`.
     - ``background_stopping`` for slowing of ions due to collisions with electrons or ions.
       This implements the approximate formulae as derived in Introduction to Plasma Physics,
       from Goldston and Rutherford, section 14.2.
@@ -1417,8 +1419,8 @@ WarpX provides several particle collions models, using varying degrees of approx
     between which the collision will be considered.
     The number of provided ``<collision_name>.species`` should match
     the number of collision names, i.e. ``collisions.collision_names``.
-    If using ``background_mcc`` type this should be the name of the species for
-    which collisions will be included. Only one species name should be given.
+    If using ``background_mcc`` or ``background_stopping`` type this should be the name of the species for which collisions will be included.
+    Only one species name should be given.
 
 * ``<collision_name>.CoulombLog`` (`float`) optional
     Only for ``pairwisecoulomb``. A provided fixed Coulomb logarithm of the
@@ -1718,8 +1720,9 @@ Numerics and algorithms
     Therefore, all the approximations that are usually made when using local FFTs with guard cells
     (for problems with multiple boxes) become exact in the case of the periodic, single-box FFT without guard cells.
 
-* ``psatd.current_correction`` (`0` or `1`; default: `0`)
+* ``psatd.current_correction`` (`0` or `1`; default: `1`, with the exceptions mentioned below)
     If true, a current correction scheme in Fourier space is applied in order to guarantee charge conservation.
+    The default value is ``psatd.current_correction=1``, unless a charge-conserving current deposition scheme is used (by setting ``algo.current_deposition=esirkepov`` or ``algo.current_deposition=vay``) or unless the ``div(E)`` cleaning scheme is used (by setting ``warpx.do_dive_cleaning=1``).
 
     If ``psatd.v_galilean`` is zero, the spectral solver used is the standard PSATD scheme described in (`Vay et al, JCP 243, 2013 <https://doi.org/10.1016/j.jcp.2013.03.010>`_) and the current correction reads
 
@@ -1737,10 +1740,7 @@ Numerics and algorithms
 
     where :math:`\theta=\exp(i\,\boldsymbol{k}\cdot\boldsymbol{v}_G\,\Delta{t}/2)`.
 
-    This option is currently implemented only for the standard PSATD and Galilean PSATD schemes, while it is not yet available for the averaged Galilean PSATD scheme (activated by the input parameter ``psatd.do_time_averaging``).
-
-    This option guarantees charge conservation only when used in combination with ``psatd.periodic_single_box_fft=1``, namely for periodic single-box simulations with global FFTs without guard cells.
-    The implementation for domain decomposition with local FFTs over guard cells is planned but not yet completed.
+    This option is currently implemented only for the standard PSATD, Galilean PSATD, and averaged Galilean PSATD schemes, while it is not yet available for the multi-J algorithm.
 
 * ``psatd.update_with_rho`` (`0` or `1`)
     If true, the update equation for the electric field is expressed in terms of both the current density and the charge density, namely :math:`\widehat{\boldsymbol{J}}^{\,n+1/2}`, :math:`\widehat\rho^{n}`, and :math:`\widehat\rho^{n+1}`.
@@ -1874,9 +1874,10 @@ Diagnostics and output
 In-situ visualization
 ^^^^^^^^^^^^^^^^^^^^^
 
-WarpX has three types of diagnostics:
+WarpX has four types of diagnostics:
 ``FullDiagnostics`` consist in dumps of fields and particles at given iterations,
-``BackTransformedDiagnostics`` are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame, and
+``BackTransformedDiagnostics`` are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame,
+``BoundaryScrapingDiagnostics`` are used to collect the particles that are absorbed at the boundary, throughout the simulation, and
 ``ReducedDiags`` allow the user to compute some reduced quantity (particle temperature, max of a field) and write a small amount of data to text files.
 Similar to what is done for physical species, WarpX has a class Diagnostics that allows users to initialize different diagnostics, each of them with different fields, resolution and period.
 This currently applies to standard diagnostics, but should be extended to back-transformed diagnostics and reduced diagnostics (and others) in a near future.
@@ -2003,6 +2004,7 @@ In-situ capabilities can be used by turning on Sensei or Ascent (provided they a
     Default is ``<diag_name>.fields_to_plot = Ex Ey Ez Bx By Bz jx jy jz``,
     unless in RZ geometry with ``<diag_name>.format == openpmd``,
     then default is ``<diag_name>.fields_to_plot = Er Et Ez Br Bt Bz jr jt jz``.
+    When the special value ``none`` is specified, no fields are written out.
     Note that the fields are averaged on the cell centers before they are written to file.
     Also, when ``<diag_name>.format = openpmd``, the RZ modes for all fields are written.
     Otherwise, we reconstruct a 2D Cartesian slice of the fields for output at :math:`\theta=0`.
@@ -2165,7 +2167,7 @@ BackTransformed Diagnostics (with support for Plotfile/openPMD output)
 Back-Transformed Diagnostics (legacy output)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``BackTransformedDiagnostics`` are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame, and
+``BackTransformedDiagnostics`` are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame
 
 * ``warpx.do_back_transformed_diagnostics`` (`0` or `1`)
     Whether to use the **back-transformed diagnostics** (i.e. diagnostics that
@@ -2236,6 +2238,17 @@ Back-Transformed Diagnostics (legacy output)
     copied from the full back-transformed diagnostic to the reduced
     slice diagnostic if there are within the user-defined width from
     the slice region defined by ``slice.dom_lo`` and ``slice.dom_hi``.
+
+Boundary Scraping Diagnostics
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``BoundaryScrapingDiagnostics`` are used to collect the particles that are absorbed at the embedded boundary, throughout the simulation.
+(Note that this diagnostics does not save any field ; it only saves particles.)
+Currently, the only supported output format is openPMD, so the user needs to set ``<diag>.format=openpmd``. In addition, the user needs
+to set ``<species>.save_particles_at_eb=1`` for each of the species that are to be saved in this diagnostic.
+
+In addition to their usual attributes, the saved particles have an additional integer attribute ``timestamp``, which
+indicates the PIC iteration at which each particle was absorbed at the boundary.
 
 .. _running-cpp-parameters-diagnostics-reduced:
 
