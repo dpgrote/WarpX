@@ -424,16 +424,38 @@ MultiParticleContainer::AllocData ()
 void
 MultiParticleContainer::InitData ()
 {
+    InitMultiPhysicsModules();
+
     for (auto& pc : allcontainers) {
         pc->InitData();
     }
     pc_tmp->InitData();
+
+}
+
+void
+MultiParticleContainer::PostRestart ()
+{
+    InitMultiPhysicsModules();
+
+    for (auto& pc : allcontainers) {
+        pc->PostRestart();
+    }
+    pc_tmp->PostRestart();
+}
+
+void
+MultiParticleContainer::InitMultiPhysicsModules ()
+{
+    // Init ionization module here instead of in the MultiParticleContainer
+    // constructor because dt is required to compute ionization rate pre-factors
+    for (auto& pc : allcontainers) {
+        pc->InitIonizationModule();
+    }
     // For each species, get the ID of its product species.
     // This is used for ionization and pair creation processes.
     mapSpeciesProduct();
-
     CheckIonizationProductSpecies();
-
 #ifdef WARPX_QED
     CheckQEDProductSpecies();
     InitQED();
@@ -443,6 +465,7 @@ MultiParticleContainer::InitData ()
         auto const& pc = allcontainers[m_species_to_replenish[0]];
         m_total_number_of_particles_for_replenishing = pc->TotalNumberOfParticles();
     }
+
 }
 
 void
@@ -685,15 +708,6 @@ MultiParticleContainer::SetParticleDistributionMap (int lev, DistributionMapping
     for (auto& pc : allcontainers) {
         pc->SetParticleDistributionMap(lev,new_dm);
     }
-}
-
-void
-MultiParticleContainer::PostRestart ()
-{
-    for (auto& pc : allcontainers) {
-        pc->PostRestart();
-    }
-    pc_tmp->PostRestart();
 }
 
 void
