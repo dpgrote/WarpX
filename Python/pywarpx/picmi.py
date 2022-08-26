@@ -15,7 +15,9 @@ import numpy as np
 import periodictable
 
 import picmistandard
-import pywarpx
+
+from . import input_groups
+from ._libwarpx import libwarpx
 
 codename = 'warpx'
 picmistandard.register_codename(codename)
@@ -115,17 +117,17 @@ class Species(picmistandard.PICMI_Species):
                           initialize_self_fields = False,
                           injection_plane_position = None,
                           injection_plane_normal_vector = None):
-        self.species_number = len(pywarpx.particles.species_names)
+        self.species_number = len(input_groups.particles.species_names)
 
         if self.name is None:
             self.name = 'species{}'.format(self.species_number)
 
-        pywarpx.particles.species_names.append(self.name)
+        input_groups.particles.species_names.append(self.name)
 
         if initialize_self_fields is None:
             initialize_self_fields = False
 
-        self.species = pywarpx.Bucket.Bucket(self.name,
+        self.species = input_groups.Bucket.Bucket(self.name,
                                              mass = self.mass,
                                              charge = self.charge,
                                              injection_style = None,
@@ -154,7 +156,7 @@ class Species(picmistandard.PICMI_Species):
         self.species.add_new_attr("reflection_model_zhi(E)", self.reflection_model_zhi)
         # self.species.add_new_attr("reflection_model_eb(E)", self.reflection_model_eb)
 
-        pywarpx.Particles.particles_list.append(self.species)
+        input_groups.Particles.particles_list.append(self.species)
 
         if self.initial_distribution is not None:
             self.initial_distribution.initialize_inputs(self.species_number, layout, self.species, self.density_scale)
@@ -163,7 +165,7 @@ class Species(picmistandard.PICMI_Species):
             if injection_plane_normal_vector is not None:
                 assert injection_plane_normal_vector[0] == 0. and injection_plane_normal_vector[1] == 0.,\
                     Exception('Rigid injection can only be done along z')
-            pywarpx.particles.rigid_injected_species.append(self.name)
+            input_groups.particles.rigid_injected_species.append(self.name)
             self.species.rigid_advance = 1
             self.species.zinject_plane = injection_plane_position
 
@@ -316,8 +318,8 @@ class AnalyticDistribution(picmistandard.PICMI_AnalyticDistribution):
         if self.mangle_dict is None:
             # Only do this once so that the same variables are used in this distribution
             # is used multiple times
-            self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
-        expression = pywarpx.my_constants.mangle_expression(self.density_expression, self.mangle_dict)
+            self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
+        expression = input_groups.my_constants.mangle_expression(self.density_expression, self.mangle_dict)
 
         species.profile = "parse_density_function"
         if density_scale is None:
@@ -349,7 +351,7 @@ class AnalyticDistribution(picmistandard.PICMI_AnalyticDistribution):
     def setup_parse_momentum_functions(self, species):
         for sdir, idir in zip(['x', 'y', 'z'], [0, 1, 2]):
             if self.momentum_expressions[idir] is not None:
-                expression = pywarpx.my_constants.mangle_expression(self.momentum_expressions[idir], self.mangle_dict)
+                expression = input_groups.my_constants.mangle_expression(self.momentum_expressions[idir], self.mangle_dict)
             else:
                 expression = f'{self.directed_velocity[idir]}'
             species.__setattr__(f'momentum_function_u{sdir}(x,y,z)', f'({expression})/{constants.c}')
@@ -389,8 +391,8 @@ class PseudoRandomLayout(picmistandard.PICMI_PseudoRandomLayout):
 class BinomialSmoother(picmistandard.PICMI_BinomialSmoother):
 
     def initialize_inputs(self, solver):
-        pywarpx.warpx.use_filter = 1
-        pywarpx.warpx.use_filter_compensation = bool(np.all(self.compensation))
+        input_groups.warpx.use_filter = 1
+        input_groups.warpx.use_filter_compensation = bool(np.all(self.compensation))
         if self.n_pass is None:
             # If not specified, do at least one pass in each direction.
             self.n_pass = 1
@@ -400,7 +402,7 @@ class BinomialSmoother(picmistandard.PICMI_BinomialSmoother):
         except TypeError:
             # If not, make it a vector
             self.n_pass = solver.grid.number_of_dimensions*[self.n_pass]
-        pywarpx.warpx.filter_npass_each_dir = self.n_pass
+        input_groups.warpx.filter_npass_each_dir = self.n_pass
 
 
 class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
@@ -424,51 +426,51 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
         # Geometry
         # Set these as soon as the information is available
         # (since these are needed to determine which shared object to load)
-        pywarpx.geometry.dims = 'RZ'
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        input_groups.geometry.dims = 'RZ'
+        input_groups.geometry.prob_lo = self.lower_bound  # physical domain
+        input_groups.geometry.prob_hi = self.upper_bound
 
     def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+        input_groups.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.max_grid_size_x = self.max_grid_size_x
-        pywarpx.amr.max_grid_size_y = self.max_grid_size_y
-        pywarpx.amr.blocking_factor = self.blocking_factor
-        pywarpx.amr.blocking_factor_x = self.blocking_factor_x
-        pywarpx.amr.blocking_factor_y = self.blocking_factor_y
+        input_groups.amr.max_grid_size = self.max_grid_size
+        input_groups.amr.max_grid_size_x = self.max_grid_size_x
+        input_groups.amr.max_grid_size_y = self.max_grid_size_y
+        input_groups.amr.blocking_factor = self.blocking_factor
+        input_groups.amr.blocking_factor_x = self.blocking_factor_x
+        input_groups.amr.blocking_factor_y = self.blocking_factor_y
 
         assert self.lower_bound[0] >= 0., Exception('Lower radial boundary must be >= 0.')
         assert self.lower_boundary_conditions[0] != 'periodic' and self.upper_boundary_conditions[0] != 'periodic', Exception('Radial boundaries can not be periodic')
 
-        pywarpx.warpx.n_rz_azimuthal_modes = self.n_azimuthal_modes
+        input_groups.warpx.n_rz_azimuthal_modes = self.n_azimuthal_modes
 
         # Boundary conditions
-        pywarpx.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
-        pywarpx.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
-        pywarpx.boundary.particle_lo = self.lower_boundary_conditions_particles
-        pywarpx.boundary.particle_hi = self.upper_boundary_conditions_particles
+        input_groups.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
+        input_groups.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
+        input_groups.boundary.particle_lo = self.lower_boundary_conditions_particles
+        input_groups.boundary.particle_hi = self.upper_boundary_conditions_particles
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            input_groups.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'r'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'r'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[1] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'z'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            input_groups.amr.max_level = 1
+            input_groups.warpx.fine_tag_lo = self.refined_regions[0][1]
+            input_groups.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2])
         else:
-            pywarpx.amr.max_level = 0
+            input_groups.amr.max_level = 0
 
 
 class Cartesian1DGrid(picmistandard.PICMI_Cartesian1DGrid):
@@ -488,41 +490,41 @@ class Cartesian1DGrid(picmistandard.PICMI_Cartesian1DGrid):
         # Geometry
         # Set these as soon as the information is available
         # (since these are needed to determine which shared object to load)
-        pywarpx.geometry.dims = '1'
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        input_groups.geometry.dims = '1'
+        input_groups.geometry.prob_lo = self.lower_bound  # physical domain
+        input_groups.geometry.prob_hi = self.upper_bound
 
     def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+        input_groups.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.max_grid_size_x = self.max_grid_size_x
-        pywarpx.amr.blocking_factor = self.blocking_factor
-        pywarpx.amr.blocking_factor_x = self.blocking_factor_x
+        input_groups.amr.max_grid_size = self.max_grid_size
+        input_groups.amr.max_grid_size_x = self.max_grid_size_x
+        input_groups.amr.blocking_factor = self.blocking_factor
+        input_groups.amr.blocking_factor_x = self.blocking_factor_x
 
         # Boundary conditions
-        pywarpx.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
-        pywarpx.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
-        pywarpx.boundary.particle_lo = self.lower_boundary_conditions_particles
-        pywarpx.boundary.particle_hi = self.upper_boundary_conditions_particles
+        input_groups.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
+        input_groups.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
+        input_groups.boundary.particle_lo = self.lower_boundary_conditions_particles
+        input_groups.boundary.particle_hi = self.upper_boundary_conditions_particles
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            input_groups.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'z'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            input_groups.amr.max_level = 1
+            input_groups.warpx.fine_tag_lo = self.refined_regions[0][1]
+            input_groups.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2])
         else:
-            pywarpx.amr.max_level = 0
+            input_groups.amr.max_level = 0
 
 class Cartesian2DGrid(picmistandard.PICMI_Cartesian2DGrid):
     def init(self, kw):
@@ -543,46 +545,46 @@ class Cartesian2DGrid(picmistandard.PICMI_Cartesian2DGrid):
         # Geometry
         # Set these as soon as the information is available
         # (since these are needed to determine which shared object to load)
-        pywarpx.geometry.dims = '2'
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        input_groups.geometry.dims = '2'
+        input_groups.geometry.prob_lo = self.lower_bound  # physical domain
+        input_groups.geometry.prob_hi = self.upper_bound
 
     def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+        input_groups.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.max_grid_size_x = self.max_grid_size_x
-        pywarpx.amr.max_grid_size_y = self.max_grid_size_y
-        pywarpx.amr.blocking_factor = self.blocking_factor
-        pywarpx.amr.blocking_factor_x = self.blocking_factor_x
-        pywarpx.amr.blocking_factor_y = self.blocking_factor_y
+        input_groups.amr.max_grid_size = self.max_grid_size
+        input_groups.amr.max_grid_size_x = self.max_grid_size_x
+        input_groups.amr.max_grid_size_y = self.max_grid_size_y
+        input_groups.amr.blocking_factor = self.blocking_factor
+        input_groups.amr.blocking_factor_x = self.blocking_factor_x
+        input_groups.amr.blocking_factor_y = self.blocking_factor_y
 
         # Boundary conditions
-        pywarpx.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
-        pywarpx.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
-        pywarpx.boundary.particle_lo = self.lower_boundary_conditions_particles
-        pywarpx.boundary.particle_hi = self.upper_boundary_conditions_particles
+        input_groups.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
+        input_groups.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
+        input_groups.boundary.particle_lo = self.lower_boundary_conditions_particles
+        input_groups.boundary.particle_hi = self.upper_boundary_conditions_particles
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            input_groups.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'x'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'x'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[1] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'z'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            input_groups.amr.max_level = 1
+            input_groups.warpx.fine_tag_lo = self.refined_regions[0][1]
+            input_groups.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2])
         else:
-            pywarpx.amr.max_level = 0
+            input_groups.amr.max_level = 0
 
 
 class Cartesian3DGrid(picmistandard.PICMI_Cartesian3DGrid):
@@ -606,51 +608,51 @@ class Cartesian3DGrid(picmistandard.PICMI_Cartesian3DGrid):
         # Geometry
         # Set these as soon as the information is available
         # (since these are needed to determine which shared object to load)
-        pywarpx.geometry.dims = '3'
-        pywarpx.geometry.prob_lo = self.lower_bound  # physical domain
-        pywarpx.geometry.prob_hi = self.upper_bound
+        input_groups.geometry.dims = '3'
+        input_groups.geometry.prob_lo = self.lower_bound  # physical domain
+        input_groups.geometry.prob_hi = self.upper_bound
 
     def initialize_inputs(self):
-        pywarpx.amr.n_cell = self.number_of_cells
+        input_groups.amr.n_cell = self.number_of_cells
 
         # Maximum allowable size of each subdomain in the problem domain;
         #    this is used to decompose the domain for parallel calculations.
-        pywarpx.amr.max_grid_size = self.max_grid_size
-        pywarpx.amr.max_grid_size_x = self.max_grid_size_x
-        pywarpx.amr.max_grid_size_y = self.max_grid_size_y
-        pywarpx.amr.max_grid_size_z = self.max_grid_size_z
-        pywarpx.amr.blocking_factor = self.blocking_factor
-        pywarpx.amr.blocking_factor_x = self.blocking_factor_x
-        pywarpx.amr.blocking_factor_y = self.blocking_factor_y
-        pywarpx.amr.blocking_factor_z = self.blocking_factor_z
+        input_groups.amr.max_grid_size = self.max_grid_size
+        input_groups.amr.max_grid_size_x = self.max_grid_size_x
+        input_groups.amr.max_grid_size_y = self.max_grid_size_y
+        input_groups.amr.max_grid_size_z = self.max_grid_size_z
+        input_groups.amr.blocking_factor = self.blocking_factor
+        input_groups.amr.blocking_factor_x = self.blocking_factor_x
+        input_groups.amr.blocking_factor_y = self.blocking_factor_y
+        input_groups.amr.blocking_factor_z = self.blocking_factor_z
 
         # Boundary conditions
-        pywarpx.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
-        pywarpx.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
-        pywarpx.boundary.particle_lo = self.lower_boundary_conditions_particles
-        pywarpx.boundary.particle_hi = self.upper_boundary_conditions_particles
+        input_groups.boundary.field_lo = [BC_map[bc] for bc in self.lower_boundary_conditions]
+        input_groups.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
+        input_groups.boundary.particle_lo = self.lower_boundary_conditions_particles
+        input_groups.boundary.particle_hi = self.upper_boundary_conditions_particles
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
-            pywarpx.warpx.do_moving_window = 1
+            input_groups.warpx.do_moving_window = 1
             if self.moving_window_velocity[0] != 0.:
-                pywarpx.warpx.moving_window_dir = 'x'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'x'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[0]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[1] != 0.:
-                pywarpx.warpx.moving_window_dir = 'y'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'y'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[1]/constants.c  # in units of the speed of light
             if self.moving_window_velocity[2] != 0.:
-                pywarpx.warpx.moving_window_dir = 'z'
-                pywarpx.warpx.moving_window_v = self.moving_window_velocity[2]/constants.c  # in units of the speed of light
+                input_groups.warpx.moving_window_dir = 'z'
+                input_groups.warpx.moving_window_v = self.moving_window_velocity[2]/constants.c  # in units of the speed of light
 
         if self.refined_regions:
             assert len(self.refined_regions) == 1, Exception('WarpX only supports one refined region.')
             assert self.refined_regions[0][0] == 1, Exception('The one refined region can only be level 1')
-            pywarpx.amr.max_level = 1
-            pywarpx.warpx.fine_tag_lo = self.refined_regions[0][1]
-            pywarpx.warpx.fine_tag_hi = self.refined_regions[0][2]
+            input_groups.amr.max_level = 1
+            input_groups.warpx.fine_tag_lo = self.refined_regions[0][1]
+            input_groups.warpx.fine_tag_hi = self.refined_regions[0][2]
             # The refinement_factor is ignored (assumed to be [2,2,2])
         else:
-            pywarpx.amr.max_level = 0
+            input_groups.amr.max_level = 0
 
 class ElectromagneticSolver(picmistandard.PICMI_ElectromagneticSolver):
     def init(self, kw):
@@ -672,50 +674,50 @@ class ElectromagneticSolver(picmistandard.PICMI_ElectromagneticSolver):
 
         self.grid.initialize_inputs()
 
-        pywarpx.warpx.pml_ncell = self.pml_ncell
-        pywarpx.warpx.do_nodal = self.l_nodal
+        input_groups.warpx.pml_ncell = self.pml_ncell
+        input_groups.warpx.do_nodal = self.l_nodal
 
         if self.method == 'PSATD':
-            pywarpx.psatd.periodic_single_box_fft = self.psatd_periodic_single_box_fft
-            pywarpx.psatd.current_correction = self.psatd_current_correction
-            pywarpx.psatd.update_with_rho = self.psatd_update_with_rho
-            pywarpx.psatd.do_time_averaging = self.psatd_do_time_averaging
+            input_groups.psatd.periodic_single_box_fft = self.psatd_periodic_single_box_fft
+            input_groups.psatd.current_correction = self.psatd_current_correction
+            input_groups.psatd.update_with_rho = self.psatd_update_with_rho
+            input_groups.psatd.do_time_averaging = self.psatd_do_time_averaging
 
             if self.grid.guard_cells is not None:
-                pywarpx.psatd.nx_guard = self.grid.guard_cells[0]
+                input_groups.psatd.nx_guard = self.grid.guard_cells[0]
                 if self.grid.number_of_dimensions == 3:
-                    pywarpx.psatd.ny_guard = self.grid.guard_cells[1]
-                pywarpx.psatd.nz_guard = self.grid.guard_cells[-1]
+                    input_groups.psatd.ny_guard = self.grid.guard_cells[1]
+                input_groups.psatd.nz_guard = self.grid.guard_cells[-1]
 
             if self.stencil_order is not None:
-                pywarpx.psatd.nox = self.stencil_order[0]
+                input_groups.psatd.nox = self.stencil_order[0]
                 if self.grid.number_of_dimensions == 3:
-                    pywarpx.psatd.noy = self.stencil_order[1]
-                pywarpx.psatd.noz = self.stencil_order[-1]
+                    input_groups.psatd.noy = self.stencil_order[1]
+                input_groups.psatd.noz = self.stencil_order[-1]
 
             if self.galilean_velocity is not None:
                 if self.grid.number_of_dimensions == 2:
                     self.galilean_velocity = [self.galilean_velocity[0], 0., self.galilean_velocity[1]]
-                pywarpx.psatd.v_galilean = np.array(self.galilean_velocity)/constants.c
+                input_groups.psatd.v_galilean = np.array(self.galilean_velocity)/constants.c
 
         # --- Same method names are used, though mapped to lower case.
-        pywarpx.algo.maxwell_solver = self.method
+        input_groups.algo.maxwell_solver = self.method
 
         if self.cfl is not None:
-            pywarpx.warpx.cfl = self.cfl
+            input_groups.warpx.cfl = self.cfl
 
         if self.source_smoother is not None:
             self.source_smoother.initialize_inputs(self)
 
-        pywarpx.warpx.do_dive_cleaning = self.divE_cleaning
-        pywarpx.warpx.do_divb_cleaning = self.divB_cleaning
+        input_groups.warpx.do_dive_cleaning = self.divE_cleaning
+        input_groups.warpx.do_divb_cleaning = self.divB_cleaning
 
-        pywarpx.warpx.do_pml_dive_cleaning = self.pml_divE_cleaning
-        pywarpx.warpx.do_pml_divb_cleaning = self.pml_divB_cleaning
+        input_groups.warpx.do_pml_dive_cleaning = self.pml_divE_cleaning
+        input_groups.warpx.do_pml_divb_cleaning = self.pml_divB_cleaning
 
-        pywarpx.warpx.do_pml_in_domain = self.do_pml_in_domain
-        pywarpx.warpx.pml_has_particles = self.pml_has_particles
-        pywarpx.warpx.do_pml_j_damping = self.do_pml_j_damping
+        input_groups.warpx.do_pml_in_domain = self.do_pml_in_domain
+        input_groups.warpx.pml_has_particles = self.pml_has_particles
+        input_groups.warpx.do_pml_j_damping = self.do_pml_j_damping
 
 class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
     def init(self, kw):
@@ -728,28 +730,28 @@ class ElectrostaticSolver(picmistandard.PICMI_ElectrostaticSolver):
         self.grid.initialize_inputs()
 
         if self.relativistic:
-            pywarpx.warpx.do_electrostatic = 'relativistic'
+            input_groups.warpx.do_electrostatic = 'relativistic'
         else:
-            pywarpx.warpx.do_electrostatic = 'labframe'
-            pywarpx.warpx.self_fields_required_precision = self.required_precision
-            pywarpx.warpx.self_fields_absolute_tolerance = self.absolute_tolerance
-            pywarpx.warpx.self_fields_max_iters = self.maximum_iterations
-            pywarpx.warpx.self_fields_verbosity = self.self_fields_verbosity
-            pywarpx.boundary.potential_lo_x = self.grid.potential_xmin
-            pywarpx.boundary.potential_lo_y = self.grid.potential_ymin
-            pywarpx.boundary.potential_lo_z = self.grid.potential_zmin
-            pywarpx.boundary.potential_hi_x = self.grid.potential_xmax
-            pywarpx.boundary.potential_hi_y = self.grid.potential_ymax
-            pywarpx.boundary.potential_hi_z = self.grid.potential_zmax
+            input_groups.warpx.do_electrostatic = 'labframe'
+            input_groups.warpx.self_fields_required_precision = self.required_precision
+            input_groups.warpx.self_fields_absolute_tolerance = self.absolute_tolerance
+            input_groups.warpx.self_fields_max_iters = self.maximum_iterations
+            input_groups.warpx.self_fields_verbosity = self.self_fields_verbosity
+            input_groups.boundary.potential_lo_x = self.grid.potential_xmin
+            input_groups.boundary.potential_lo_y = self.grid.potential_ymin
+            input_groups.boundary.potential_lo_z = self.grid.potential_zmin
+            input_groups.boundary.potential_hi_x = self.grid.potential_xmax
+            input_groups.boundary.potential_hi_y = self.grid.potential_ymax
+            input_groups.boundary.potential_hi_z = self.grid.potential_zmax
 
 
 class GaussianLaser(picmistandard.PICMI_GaussianLaser):
     def initialize_inputs(self):
-        self.laser_number = len(pywarpx.lasers.names) + 1
+        self.laser_number = len(input_groups.lasers.names) + 1
         if self.name is None:
             self.name = 'laser{}'.format(self.laser_number)
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = input_groups.Lasers.newlaser(self.name)
 
         self.laser.profile = "Gaussian"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -770,11 +772,11 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         self.mangle_dict = None
 
     def initialize_inputs(self):
-        self.laser_number = len(pywarpx.lasers.names) + 1
+        self.laser_number = len(input_groups.lasers.names) + 1
         if self.name is None:
             self.name = 'laser{}'.format(self.laser_number)
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = input_groups.Lasers.newlaser(self.name)
 
         self.laser.profile = "parse_field_function"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -786,8 +788,8 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         if self.mangle_dict is None:
             # Only do this once so that the same variables are used in this distribution
             # is used multiple times
-            self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
-        expression = pywarpx.my_constants.mangle_expression(self.field_expression, self.mangle_dict)
+            self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
+        expression = input_groups.my_constants.mangle_expression(self.field_expression, self.mangle_dict)
         self.laser.__setattr__('field_function(X,Y,t)', expression)
 
 class LaserAntenna(picmistandard.PICMI_LaserAntenna):
@@ -806,14 +808,14 @@ class ConstantAppliedField(picmistandard.PICMI_ConstantAppliedField):
         if (self.Ex is not None or
             self.Ey is not None or
             self.Ez is not None):
-            pywarpx.particles.E_ext_particle_init_style = 'constant'
-            pywarpx.particles.E_external_particle = [self.Ex or 0., self.Ey or 0., self.Ez or 0.]
+            input_groups.particles.E_ext_particle_init_style = 'constant'
+            input_groups.particles.E_external_particle = [self.Ex or 0., self.Ey or 0., self.Ez or 0.]
 
         if (self.Bx is not None or
             self.By is not None or
             self.Bz is not None):
-            pywarpx.particles.B_ext_particle_init_style = 'constant'
-            pywarpx.particles.B_external_particle = [self.Bx or 0., self.By or 0., self.Bz or 0.]
+            input_groups.particles.B_ext_particle_init_style = 'constant'
+            input_groups.particles.B_external_particle = [self.Bx or 0., self.By or 0., self.Bz or 0.]
 
 
 class AnalyticAppliedField(picmistandard.PICMI_AnalyticAppliedField):
@@ -826,39 +828,39 @@ class AnalyticAppliedField(picmistandard.PICMI_AnalyticAppliedField):
         if self.mangle_dict is None:
             # Only do this once so that the same variables are used in this distribution
             # is used multiple times
-            self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
+            self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
 
         if (self.Ex_expression is not None or
             self.Ey_expression is not None or
             self.Ez_expression is not None):
-            pywarpx.particles.E_ext_particle_init_style = 'parse_e_ext_particle_function'
+            input_groups.particles.E_ext_particle_init_style = 'parse_e_ext_particle_function'
             for sdir, expression in zip(['x', 'y', 'z'], [self.Ex_expression, self.Ey_expression, self.Ez_expression]):
-                expression = pywarpx.my_constants.mangle_expression(expression, self.mangle_dict)
-                pywarpx.particles.__setattr__(f'E{sdir}_external_particle_function(x,y,z,t)', expression)
+                expression = input_groups.my_constants.mangle_expression(expression, self.mangle_dict)
+                input_groups.particles.__setattr__(f'E{sdir}_external_particle_function(x,y,z,t)', expression)
 
         if (self.Bx_expression is not None or
             self.By_expression is not None or
             self.Bz_expression is not None):
-            pywarpx.particles.B_ext_particle_init_style = 'parse_b_ext_particle_function'
+            input_groups.particles.B_ext_particle_init_style = 'parse_b_ext_particle_function'
             for sdir, expression in zip(['x', 'y', 'z'], [self.Bx_expression, self.By_expression, self.Bz_expression]):
-                expression = pywarpx.my_constants.mangle_expression(expression, self.mangle_dict)
-                pywarpx.particles.__setattr__(f'B{sdir}_external_particle_function(x,y,z,t)', expression)
+                expression = input_groups.my_constants.mangle_expression(expression, self.mangle_dict)
+                input_groups.particles.__setattr__(f'B{sdir}_external_particle_function(x,y,z,t)', expression)
 
 
 class Mirror(picmistandard.PICMI_Mirror):
     def initialize_inputs(self):
         try:
-            pywarpx.warpx.num_mirrors
+            input_groups.warpx.num_mirrors
         except AttributeError:
-            pywarpx.warpx.num_mirrors = 0
-            pywarpx.warpx.mirror_z = []
-            pywarpx.warpx.mirror_z_width = []
-            pywarpx.warpx.mirror_z_npoints = []
+            input_groups.warpx.num_mirrors = 0
+            input_groups.warpx.mirror_z = []
+            input_groups.warpx.mirror_z_width = []
+            input_groups.warpx.mirror_z_npoints = []
 
-        pywarpx.warpx.num_mirrors += 1
-        pywarpx.warpx.mirror_z.append(self.z_front_location)
-        pywarpx.warpx.mirror_z_width.append(self.depth)
-        pywarpx.warpx.mirror_z_npoints.append(self.number_of_cells)
+        input_groups.warpx.num_mirrors += 1
+        input_groups.warpx.mirror_z.append(self.z_front_location)
+        input_groups.warpx.mirror_z_width.append(self.depth)
+        input_groups.warpx.mirror_z_npoints.append(self.number_of_cells)
 
 
 class CoulombCollisions(picmistandard.base._ClassWithInit):
@@ -875,7 +877,7 @@ class CoulombCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def initialize_inputs(self):
-        collision = pywarpx.Collisions.newcollision(self.name)
+        collision = input_groups.Collisions.newcollision(self.name)
         collision.type = 'pairwisecoulomb'
         collision.species = [species.name for species in self.species]
         collision.CoulombLog = self.CoulombLog
@@ -901,7 +903,7 @@ class MCCCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def initialize_inputs(self):
-        collision = pywarpx.Collisions.newcollision(self.name)
+        collision = input_groups.Collisions.newcollision(self.name)
         collision.type = 'background_mcc'
         collision.species = self.species.name
         collision.background_density = self.background_density
@@ -968,23 +970,23 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
         # Add the user defined keywords to my_constants
         # The keywords are mangled if there is a conflicting variable already
         # defined in my_constants with the same name but different value.
-        self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
+        self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
 
         if self.implicit_function is not None:
-            expression = pywarpx.my_constants.mangle_expression(self.implicit_function, self.mangle_dict)
-            pywarpx.warpx.eb_implicit_function = expression
+            expression = input_groups.my_constants.mangle_expression(self.implicit_function, self.mangle_dict)
+            input_groups.warpx.eb_implicit_function = expression
 
         if self.stl_file is not None:
-            pywarpx.eb2.geom_type = "stl"
-            pywarpx.eb2.stl_file = self.stl_file
-            pywarpx.eb2.stl_scale = self.stl_scale
-            pywarpx.eb2.stl_center = self.stl_center
-            pywarpx.eb2.stl_reverse_normal = self.stl_reverse_normal
+            input_groups.eb2.geom_type = "stl"
+            input_groups.eb2.stl_file = self.stl_file
+            input_groups.eb2.stl_scale = self.stl_scale
+            input_groups.eb2.stl_center = self.stl_center
+            input_groups.eb2.stl_reverse_normal = self.stl_reverse_normal
 
         if self.potential is not None:
             assert isinstance(solver, ElectrostaticSolver), Exception('The potential is only supported with the ElectrostaticSolver')
-            expression = pywarpx.my_constants.mangle_expression(self.potential, self.mangle_dict)
-            pywarpx.warpx.__setattr__('eb_potential(x,y,z,t)', expression)
+            expression = input_groups.my_constants.mangle_expression(self.potential, self.mangle_dict)
+            input_groups.warpx.__setattr__('eb_potential(x,y,z,t)', expression)
 
 
 class PlasmaLens(picmistandard.base._ClassWithInit):
@@ -1010,13 +1012,13 @@ class PlasmaLens(picmistandard.base._ClassWithInit):
 
     def initialize_inputs(self):
 
-        pywarpx.particles.E_ext_particle_init_style = 'repeated_plasma_lens'
-        pywarpx.particles.B_ext_particle_init_style = 'repeated_plasma_lens'
-        pywarpx.particles.repeated_plasma_lens_period = self.period
-        pywarpx.particles.repeated_plasma_lens_starts = self.starts
-        pywarpx.particles.repeated_plasma_lens_lengths = self.lengths
-        pywarpx.particles.repeated_plasma_lens_strengths_E = self.strengths_E
-        pywarpx.particles.repeated_plasma_lens_strengths_B = self.strengths_B
+        input_groups.particles.E_ext_particle_init_style = 'repeated_plasma_lens'
+        input_groups.particles.B_ext_particle_init_style = 'repeated_plasma_lens'
+        input_groups.particles.repeated_plasma_lens_period = self.period
+        input_groups.particles.repeated_plasma_lens_starts = self.starts
+        input_groups.particles.repeated_plasma_lens_lengths = self.lengths
+        input_groups.particles.repeated_plasma_lens_strengths_E = self.strengths_E
+        input_groups.particles.repeated_plasma_lens_strengths_B = self.strengths_B
 
 
 class Simulation(picmistandard.PICMI_Simulation):
@@ -1024,7 +1026,7 @@ class Simulation(picmistandard.PICMI_Simulation):
     # Set the C++ WarpX interface (see _libwarpx.LibWarpX) as an extension to
     # Simulation objects. In the future, LibWarpX objects may actually be owned
     # by Simulation objects to permit multiple WarpX runs simultaneously.
-    extension = pywarpx.libwarpx
+    extension = libwarpx
 
     def init(self, kw):
 
@@ -1062,39 +1064,39 @@ class Simulation(picmistandard.PICMI_Simulation):
 
         self.inputs_initialized = True
 
-        pywarpx.warpx.verbose = self.verbose
+        input_groups.warpx.verbose = self.verbose
         if self.time_step_size is not None:
-            pywarpx.warpx.const_dt = self.time_step_size
+            input_groups.warpx.const_dt = self.time_step_size
 
         if self.gamma_boost is not None:
-            pywarpx.warpx.gamma_boost = self.gamma_boost
-            pywarpx.warpx.boost_direction = 'z'
+            input_groups.warpx.gamma_boost = self.gamma_boost
+            input_groups.warpx.boost_direction = 'z'
 
-        pywarpx.warpx.zmax_plasma_to_compute_max_step = self.zmax_plasma_to_compute_max_step
+        input_groups.warpx.zmax_plasma_to_compute_max_step = self.zmax_plasma_to_compute_max_step
 
-        pywarpx.algo.current_deposition = self.current_deposition_algo
-        pywarpx.algo.charge_deposition = self.charge_deposition_algo
-        pywarpx.algo.field_gathering = self.field_gathering_algo
-        pywarpx.algo.particle_pusher = self.particle_pusher_algo
-        pywarpx.algo.load_balance_intervals = self.load_balance_intervals
-        pywarpx.algo.load_balance_efficiency_ratio_threshold = self.load_balance_efficiency_ratio_threshold
-        pywarpx.algo.load_balance_with_sfc = self.load_balance_with_sfc
-        pywarpx.algo.load_balance_knapsack_factor = self.load_balance_knapsack_factor
-        pywarpx.algo.load_balance_costs_update = self.load_balance_costs_update
-        pywarpx.algo.costs_heuristic_particles_wt = self.costs_heuristic_particles_wt
-        pywarpx.algo.costs_heuristic_cells_wt = self.costs_heuristic_cells_wt
+        input_groups.algo.current_deposition = self.current_deposition_algo
+        input_groups.algo.charge_deposition = self.charge_deposition_algo
+        input_groups.algo.field_gathering = self.field_gathering_algo
+        input_groups.algo.particle_pusher = self.particle_pusher_algo
+        input_groups.algo.load_balance_intervals = self.load_balance_intervals
+        input_groups.algo.load_balance_efficiency_ratio_threshold = self.load_balance_efficiency_ratio_threshold
+        input_groups.algo.load_balance_with_sfc = self.load_balance_with_sfc
+        input_groups.algo.load_balance_knapsack_factor = self.load_balance_knapsack_factor
+        input_groups.algo.load_balance_costs_update = self.load_balance_costs_update
+        input_groups.algo.costs_heuristic_particles_wt = self.costs_heuristic_particles_wt
+        input_groups.algo.costs_heuristic_cells_wt = self.costs_heuristic_cells_wt
 
-        pywarpx.warpx.use_filter = self.use_filter
-        pywarpx.warpx.serialize_initial_conditions = self.serialize_initial_conditions
+        input_groups.warpx.use_filter = self.use_filter
+        input_groups.warpx.serialize_initial_conditions = self.serialize_initial_conditions
 
-        pywarpx.warpx.do_dynamic_scheduling = self.do_dynamic_scheduling
+        input_groups.warpx.do_dynamic_scheduling = self.do_dynamic_scheduling
 
-        pywarpx.particles.use_fdtd_nci_corr = self.use_fdtd_nci_corr
+        input_groups.particles.use_fdtd_nci_corr = self.use_fdtd_nci_corr
 
-        pywarpx.amr.check_input = self.amr_check_input
+        input_groups.amr.check_input = self.amr_check_input
 
-        pywarpx.warpx.break_signals = self.break_signals
-        pywarpx.warpx.checkpoint_signals = self.checkpoint_signals
+        input_groups.warpx.break_signals = self.break_signals
+        input_groups.warpx.checkpoint_signals = self.checkpoint_signals
 
         particle_shape = self.particle_shape
         for s in self.species:
@@ -1108,7 +1110,7 @@ class Simulation(picmistandard.PICMI_Simulation):
                 interpolation_order = {'NGP':0, 'linear':1, 'quadratic':2, 'cubic':3}[particle_shape]
             else:
                 interpolation_order = particle_shape
-            pywarpx.algo.particle_shape = interpolation_order
+            input_groups.algo.particle_shape = interpolation_order
 
         self.solver.initialize_inputs()
 
@@ -1119,9 +1121,9 @@ class Simulation(picmistandard.PICMI_Simulation):
                                               self.injection_plane_normal_vectors[i])
 
         if self.collisions is not None:
-            pywarpx.collisions.collision_names = []
+            input_groups.collisions.collision_names = []
             for collision in self.collisions:
-                pywarpx.collisions.collision_names.append(collision.name)
+                input_groups.collisions.collision_names.append(collision.name)
                 collision.initialize_inputs()
 
         if self.embedded_boundary is not None:
@@ -1138,14 +1140,14 @@ class Simulation(picmistandard.PICMI_Simulation):
             diagnostic.initialize_inputs()
 
         if self.amr_restart:
-            pywarpx.amr.restart = self.amr_restart
+            input_groups.amr.restart = self.amr_restart
 
     def initialize_warpx(self, mpi_comm=None):
         if self.warpx_initialized:
             return
 
         self.warpx_initialized = True
-        pywarpx.warpx.init(mpi_comm)
+        input_groups.warpx.init(mpi_comm)
 
     def write_input_file(self, file_name='inputs'):
         self.initialize_inputs()
@@ -1154,7 +1156,7 @@ class Simulation(picmistandard.PICMI_Simulation):
             kw['max_step'] = self.max_steps
         if self.max_time is not None:
             kw['stop_time'] = self.max_time
-        pywarpx.warpx.write_inputs(file_name, **kw)
+        input_groups.warpx.write_inputs(file_name, **kw)
 
     def step(self, nsteps=None, mpi_comm=None):
         self.initialize_inputs()
@@ -1164,12 +1166,12 @@ class Simulation(picmistandard.PICMI_Simulation):
                 nsteps = self.max_steps
             else:
                 nsteps = -1
-        pywarpx.warpx.evolve(nsteps)
+        input_groups.warpx.evolve(nsteps)
 
     def finalize(self):
         if self.warpx_initialized:
             self.warpx_initialized = False
-            pywarpx.warpx.finalize()
+            input_groups.warpx.finalize()
 
 
 # ----------------------------
@@ -1194,14 +1196,14 @@ class FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
 
         name = getattr(self, 'name', None)
         if name is None:
-            diagnostics_number = len(pywarpx.diagnostics._diagnostics_dict) + 1
+            diagnostics_number = len(input_groups.diagnostics._diagnostics_dict) + 1
             self.name = 'diag{}'.format(diagnostics_number)
 
         try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
+            self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'Full'
         self.diagnostic.format = self.format
@@ -1291,10 +1293,10 @@ class Checkpoint(picmistandard.base._ClassWithInit):
     def initialize_inputs(self):
 
         try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
+            self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.intervals = self.period
         self.diagnostic.diag_type = 'Full'
@@ -1332,14 +1334,14 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
 
         name = getattr(self, 'name', None)
         if name is None:
-            diagnostics_number = len(pywarpx.diagnostics._diagnostics_dict) + 1
+            diagnostics_number = len(input_groups.diagnostics._diagnostics_dict) + 1
             self.name = 'diag{}'.format(diagnostics_number)
 
         try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
+            self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'Full'
         self.diagnostic.format = self.format
@@ -1389,14 +1391,14 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
         if self.mangle_dict is None:
             # Only do this once so that the same variables are used in this distribution
             # is used multiple times
-            self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
+            self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
 
         for specie in species_list:
-            diag = pywarpx.Bucket.Bucket(self.name + '.' + specie.name,
+            diag = input_groups.Bucket.Bucket(self.name + '.' + specie.name,
                                          variables = variables,
                                          random_fraction = self.random_fraction,
                                          uniform_stride = self.uniform_stride)
-            expression = pywarpx.my_constants.mangle_expression(self.plot_filter_function, self.mangle_dict)
+            expression = input_groups.my_constants.mangle_expression(self.plot_filter_function, self.mangle_dict)
             diag.__setattr__('plot_filter_function(t,x,y,z,ux,uy,uz)', expression)
             self.diagnostic._species_dict[specie.name] = diag
 
@@ -1438,28 +1440,28 @@ class LabFrameFieldDiagnostic(picmistandard.PICMI_LabFrameFieldDiagnostic):
 
     def initialize_inputs_old(self):
 
-        pywarpx.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
 
-        pywarpx.warpx.do_back_transformed_diagnostics = 1
-        pywarpx.warpx.num_snapshots_lab = self.num_snapshots
-        pywarpx.warpx.dt_snapshots_lab = self.dt_snapshots
-        pywarpx.warpx.do_back_transformed_fields = 1
-        pywarpx.warpx.lab_data_directory = self.write_dir
+        input_groups.warpx.do_back_transformed_diagnostics = 1
+        input_groups.warpx.num_snapshots_lab = self.num_snapshots
+        input_groups.warpx.dt_snapshots_lab = self.dt_snapshots
+        input_groups.warpx.do_back_transformed_fields = 1
+        input_groups.warpx.lab_data_directory = self.write_dir
 
     def initialize_inputs_new(self):
 
         name = getattr(self, 'name', None)
         if name is None:
-            diagnostics_number = len(pywarpx.diagnostics._diagnostics_dict) + 1
+            diagnostics_number = len(input_groups.diagnostics._diagnostics_dict) + 1
             self.name = 'diag{}'.format(diagnostics_number)
 
         try:
-            self.diagnostic = pywarpx.diagnostics._diagnostics_dict[self.name]
+            self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(self.name, _species_dict={})
-            pywarpx.diagnostics._diagnostics_dict[self.name] = self.diagnostic
+            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'BackTransformed'
         self.diagnostic.format = self.format
@@ -1513,11 +1515,11 @@ class LabFrameFieldDiagnostic(picmistandard.PICMI_LabFrameFieldDiagnostic):
 class LabFrameParticleDiagnostic(picmistandard.PICMI_LabFrameParticleDiagnostic):
     def initialize_inputs(self):
 
-        pywarpx.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
-        pywarpx.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('num_snapshots_lab', self.num_snapshots, 'The number of snapshots must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('dt_snapshots_lab', self.dt_snapshots, 'The time between snapshots must be the same in all lab frame diagnostics')
+        input_groups.warpx.check_consistency('lab_data_directory', self.write_dir, 'The write directory must be the same in all lab frame diagnostics')
 
-        pywarpx.warpx.do_back_transformed_diagnostics = 1
+        input_groups.warpx.do_back_transformed_diagnostics = 1
 
         if isinstance(self.species, Species):
             self.species.do_back_transformed_diagnostics = 1
@@ -1528,6 +1530,6 @@ class LabFrameParticleDiagnostic(picmistandard.PICMI_LabFrameParticleDiagnostic)
             except TypeError:
                 pass
 
-        pywarpx.warpx.num_snapshots_lab = self.num_snapshots
-        pywarpx.warpx.dt_snapshots_lab = self.dt_snapshots
-        pywarpx.warpx.lab_data_directory = self.write_dir
+        input_groups.warpx.num_snapshots_lab = self.num_snapshots
+        input_groups.warpx.dt_snapshots_lab = self.dt_snapshots
+        input_groups.warpx.lab_data_directory = self.write_dir

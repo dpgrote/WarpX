@@ -7,21 +7,11 @@
 
 import re
 
-from . import Particles
-from .Algo import algo
-from .Amr import amr
-from .Boundary import boundary
+from . import input_groups
 from .Bucket import Bucket
-from .Collisions import collisions, collisions_list
-from .Constants import my_constants
-from .Diagnostics import diagnostics
-from .EB2 import eb2
-from .Geometry import geometry
-from .Interpolation import interpolation
-from .Langmuirwave import langmuirwave
-from .Lasers import lasers, lasers_list
-from .PSATD import psatd
-from .Particles import particles, particles_list
+from .Collisions import collisions_list
+from .Lasers import lasers_list
+from .Particles import particles_list, particle_dict
 from ._libwarpx import libwarpx
 
 
@@ -32,45 +22,44 @@ class WarpX(Bucket):
 
     def create_argv_list(self):
         argv = []
-        argv += warpx.attrlist()
-        argv += my_constants.attrlist()
-        argv += amr.attrlist()
-        argv += geometry.attrlist()
-        argv += boundary.attrlist()
-        argv += algo.attrlist()
-        argv += langmuirwave.attrlist()
-        argv += interpolation.attrlist()
-        argv += psatd.attrlist()
-        argv += eb2.attrlist()
+        argv += input_groups.warpx.attrlist()
+        argv += input_groups.my_constants.attrlist()
+        argv += input_groups.amr.attrlist()
+        argv += input_groups.geometry.attrlist()
+        argv += input_groups.boundary.attrlist()
+        argv += input_groups.algo.attrlist()
+        argv += input_groups.interpolation.attrlist()
+        argv += input_groups.psatd.attrlist()
+        argv += input_groups.eb2.attrlist()
 
         # --- Search through species_names and add any predefined particle objects in the list.
         particles_list_names = [p.instancename for p in particles_list]
-        for pstring in particles.species_names:
+        for pstring in input_groups.particles.species_names:
             if pstring in particles_list_names:
                 # --- The species is already included in particles_list
                 continue
-            elif hasattr(Particles, pstring):
+            elif pstring in particle_dict:
                 # --- Add the predefined species to particles_list
-                particles_list.append(getattr(Particles, pstring))
+                particles_list.append(particle_dict[pstring])
                 particles_list_names.append(pstring)
             else:
                 raise Exception('Species %s listed in species_names not defined'%pstring)
 
-        argv += particles.attrlist()
+        argv += input_groups.particles.attrlist()
         for particle in particles_list:
             argv += particle.attrlist()
 
-        argv += collisions.attrlist()
+        argv += input_groups.collisions.attrlist()
         for collision in collisions_list:
             argv += collision.attrlist()
 
-        argv += lasers.attrlist()
+        argv += input_groups.lasers.attrlist()
         for laser in lasers_list:
             argv += laser.attrlist()
 
-        diagnostics.diags_names = diagnostics._diagnostics_dict.keys()
-        argv += diagnostics.attrlist()
-        for diagnostic in diagnostics._diagnostics_dict.values():
+        input_groups.diagnostics.diags_names = input_groups.diagnostics._diagnostics_dict.keys()
+        argv += input_groups.diagnostics.attrlist()
+        for diagnostic in input_groups.diagnostics._diagnostics_dict.values():
             diagnostic.species = diagnostic._species_dict.keys()
             argv += diagnostic.attrlist()
             for species_diagnostic in diagnostic._species_dict.values():
