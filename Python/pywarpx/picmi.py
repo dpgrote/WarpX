@@ -17,6 +17,7 @@ import periodictable
 import picmistandard
 
 from . import input_groups
+from .Bucket import Bucket
 from ._libwarpx import libwarpx
 
 codename = 'warpx'
@@ -127,25 +128,25 @@ class Species(picmistandard.PICMI_Species):
         if initialize_self_fields is None:
             initialize_self_fields = False
 
-        self.species = input_groups.Bucket.Bucket(self.name,
-                                             mass = self.mass,
-                                             charge = self.charge,
-                                             injection_style = None,
-                                             initialize_self_fields = int(initialize_self_fields),
-                                             boost_adjust_transverse_positions = self.boost_adjust_transverse_positions,
-                                             self_fields_required_precision = self.self_fields_required_precision,
-                                             self_fields_absolute_tolerance = self.self_fields_absolute_tolerance,
-                                             self_fields_max_iters = self.self_fields_max_iters,
-                                             self_fields_verbosity = self.self_fields_verbosity,
-                                             save_particles_at_xlo = self.save_particles_at_xlo,
-                                             save_particles_at_xhi = self.save_particles_at_xhi,
-                                             save_particles_at_ylo = self.save_particles_at_ylo,
-                                             save_particles_at_yhi = self.save_particles_at_yhi,
-                                             save_particles_at_zlo = self.save_particles_at_zlo,
-                                             save_particles_at_zhi = self.save_particles_at_zhi,
-                                             save_particles_at_eb = self.save_particles_at_eb,
-                                             save_previous_position = self.save_previous_position,
-                                             do_not_deposit = self.do_not_deposit)
+        self.species = Bucket(self.name,
+                              mass = self.mass,
+                              charge = self.charge,
+                              injection_style = None,
+                              initialize_self_fields = int(initialize_self_fields),
+                              boost_adjust_transverse_positions = self.boost_adjust_transverse_positions,
+                              self_fields_required_precision = self.self_fields_required_precision,
+                              self_fields_absolute_tolerance = self.self_fields_absolute_tolerance,
+                              self_fields_max_iters = self.self_fields_max_iters,
+                              self_fields_verbosity = self.self_fields_verbosity,
+                              save_particles_at_xlo = self.save_particles_at_xlo,
+                              save_particles_at_xhi = self.save_particles_at_xhi,
+                              save_particles_at_ylo = self.save_particles_at_ylo,
+                              save_particles_at_yhi = self.save_particles_at_yhi,
+                              save_particles_at_zlo = self.save_particles_at_zlo,
+                              save_particles_at_zhi = self.save_particles_at_zhi,
+                              save_particles_at_eb = self.save_particles_at_eb,
+                              save_previous_position = self.save_previous_position,
+                              do_not_deposit = self.do_not_deposit)
 
         # add reflection models
         self.species.add_new_attr("reflection_model_xlo(E)", self.reflection_model_xlo)
@@ -1394,10 +1395,10 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
             self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
 
         for specie in species_list:
-            diag = input_groups.Bucket.Bucket(self.name + '.' + specie.name,
-                                         variables = variables,
-                                         random_fraction = self.random_fraction,
-                                         uniform_stride = self.uniform_stride)
+            diag = Bucket(self.name + '.' + specie.name,
+                          variables = variables,
+                          random_fraction = self.random_fraction,
+                          uniform_stride = self.uniform_stride)
             expression = input_groups.my_constants.mangle_expression(self.plot_filter_function, self.mangle_dict)
             diag.__setattr__('plot_filter_function(t,x,y,z,ux,uy,uz)', expression)
             self.diagnostic._species_dict[specie.name] = diag
