@@ -16,7 +16,7 @@
 
 import warp
 
-from pywarpx import PGroup
+from .PGroup import PGroup
 
 from . import fields
 

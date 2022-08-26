@@ -7,7 +7,7 @@
 import numpy as np
 
 from ._libwarpx import libwarpx
-from ._picmi import constants
+from .picmi import constants
 
 
 class PGroup(object):
