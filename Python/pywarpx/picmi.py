@@ -17,7 +17,11 @@ import periodictable
 import picmistandard
 
 from . import input_groups
-from .Bucket import Bucket
+from . import Bucket
+from . import Collisions
+from . import Diagnostics
+from . import Lasers
+from . import Particles
 from ._libwarpx import libwarpx
 
 codename = 'warpx'
@@ -128,25 +132,25 @@ class Species(picmistandard.PICMI_Species):
         if initialize_self_fields is None:
             initialize_self_fields = False
 
-        self.species = Bucket(self.name,
-                              mass = self.mass,
-                              charge = self.charge,
-                              injection_style = None,
-                              initialize_self_fields = int(initialize_self_fields),
-                              boost_adjust_transverse_positions = self.boost_adjust_transverse_positions,
-                              self_fields_required_precision = self.self_fields_required_precision,
-                              self_fields_absolute_tolerance = self.self_fields_absolute_tolerance,
-                              self_fields_max_iters = self.self_fields_max_iters,
-                              self_fields_verbosity = self.self_fields_verbosity,
-                              save_particles_at_xlo = self.save_particles_at_xlo,
-                              save_particles_at_xhi = self.save_particles_at_xhi,
-                              save_particles_at_ylo = self.save_particles_at_ylo,
-                              save_particles_at_yhi = self.save_particles_at_yhi,
-                              save_particles_at_zlo = self.save_particles_at_zlo,
-                              save_particles_at_zhi = self.save_particles_at_zhi,
-                              save_particles_at_eb = self.save_particles_at_eb,
-                              save_previous_position = self.save_previous_position,
-                              do_not_deposit = self.do_not_deposit)
+        self.species = Bucket.Bucket(self.name,
+                                     mass = self.mass,
+                                     charge = self.charge,
+                                     injection_style = None,
+                                     initialize_self_fields = int(initialize_self_fields),
+                                     boost_adjust_transverse_positions = self.boost_adjust_transverse_positions,
+                                     self_fields_required_precision = self.self_fields_required_precision,
+                                     self_fields_absolute_tolerance = self.self_fields_absolute_tolerance,
+                                     self_fields_max_iters = self.self_fields_max_iters,
+                                     self_fields_verbosity = self.self_fields_verbosity,
+                                     save_particles_at_xlo = self.save_particles_at_xlo,
+                                     save_particles_at_xhi = self.save_particles_at_xhi,
+                                     save_particles_at_ylo = self.save_particles_at_ylo,
+                                     save_particles_at_yhi = self.save_particles_at_yhi,
+                                     save_particles_at_zlo = self.save_particles_at_zlo,
+                                     save_particles_at_zhi = self.save_particles_at_zhi,
+                                     save_particles_at_eb = self.save_particles_at_eb,
+                                     save_previous_position = self.save_previous_position,
+                                     do_not_deposit = self.do_not_deposit)
 
         # add reflection models
         self.species.add_new_attr("reflection_model_xlo(E)", self.reflection_model_xlo)
@@ -157,7 +161,7 @@ class Species(picmistandard.PICMI_Species):
         self.species.add_new_attr("reflection_model_zhi(E)", self.reflection_model_zhi)
         # self.species.add_new_attr("reflection_model_eb(E)", self.reflection_model_eb)
 
-        input_groups.Particles.particles_list.append(self.species)
+        Particles.particles_list.append(self.species)
 
         if self.initial_distribution is not None:
             self.initial_distribution.initialize_inputs(self.species_number, layout, self.species, self.density_scale)
@@ -752,7 +756,7 @@ class GaussianLaser(picmistandard.PICMI_GaussianLaser):
         if self.name is None:
             self.name = 'laser{}'.format(self.laser_number)
 
-        self.laser = input_groups.Lasers.newlaser(self.name)
+        self.laser = Lasers.newlaser(self.name)
 
         self.laser.profile = "Gaussian"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -777,7 +781,7 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         if self.name is None:
             self.name = 'laser{}'.format(self.laser_number)
 
-        self.laser = input_groups.Lasers.newlaser(self.name)
+        self.laser = Lasers.newlaser(self.name)
 
         self.laser.profile = "parse_field_function"
         self.laser.wavelength = self.wavelength  # The wavelength of the laser (in meters)
@@ -878,7 +882,7 @@ class CoulombCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def initialize_inputs(self):
-        collision = input_groups.Collisions.newcollision(self.name)
+        collision = Collisions.newcollision(self.name)
         collision.type = 'pairwisecoulomb'
         collision.species = [species.name for species in self.species]
         collision.CoulombLog = self.CoulombLog
@@ -904,7 +908,7 @@ class MCCCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def initialize_inputs(self):
-        collision = input_groups.Collisions.newcollision(self.name)
+        collision = Collisions.newcollision(self.name)
         collision.type = 'background_mcc'
         collision.species = self.species.name
         collision.background_density = self.background_density
@@ -1203,7 +1207,7 @@ class FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic):
         try:
             self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            self.diagnostic = Diagnostics.Diagnostic(self.name, _species_dict={})
             input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'Full'
@@ -1296,7 +1300,7 @@ class Checkpoint(picmistandard.base._ClassWithInit):
         try:
             self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            self.diagnostic = Diagnostics.Diagnostic(self.name, _species_dict={})
             input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.intervals = self.period
@@ -1341,7 +1345,7 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
         try:
             self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            self.diagnostic = Diagnostics.Diagnostic(self.name, _species_dict={})
             input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'Full'
@@ -1395,10 +1399,10 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic):
             self.mangle_dict = input_groups.my_constants.add_keywords(self.user_defined_kw)
 
         for specie in species_list:
-            diag = Bucket(self.name + '.' + specie.name,
-                          variables = variables,
-                          random_fraction = self.random_fraction,
-                          uniform_stride = self.uniform_stride)
+            diag = Bucket.Bucket(self.name + '.' + specie.name,
+                                 variables = variables,
+                                 random_fraction = self.random_fraction,
+                                 uniform_stride = self.uniform_stride)
             expression = input_groups.my_constants.mangle_expression(self.plot_filter_function, self.mangle_dict)
             diag.__setattr__('plot_filter_function(t,x,y,z,ux,uy,uz)', expression)
             self.diagnostic._species_dict[specie.name] = diag
@@ -1461,7 +1465,7 @@ class LabFrameFieldDiagnostic(picmistandard.PICMI_LabFrameFieldDiagnostic):
         try:
             self.diagnostic = input_groups.diagnostics._diagnostics_dict[self.name]
         except KeyError:
-            self.diagnostic = input_groups.Diagnostics.Diagnostic(self.name, _species_dict={})
+            self.diagnostic = Diagnostics.Diagnostic(self.name, _species_dict={})
             input_groups.diagnostics._diagnostics_dict[self.name] = self.diagnostic
 
         self.diagnostic.diag_type = 'BackTransformed'
