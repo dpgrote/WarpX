@@ -281,6 +281,7 @@ public:
     // Inject particles from a surface during the simulation
     void ContinuousFluxInjection(amrex::Real t, amrex::Real dt) const;
 
+    void InitializeReplenishNumber ();
     void ReplenishPlasma ();
     amrex::Real replenish_xmin, replenish_xmax;
     std::vector<int> m_species_to_replenish;

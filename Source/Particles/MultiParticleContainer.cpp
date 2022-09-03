@@ -432,6 +432,8 @@ MultiParticleContainer::InitData ()
     }
     pc_tmp->InitData();
 
+    InitializeReplenishNumber();
+
 }
 
 void
@@ -443,6 +445,9 @@ MultiParticleContainer::PostRestart ()
         pc->PostRestart();
     }
     pc_tmp->PostRestart();
+
+    InitializeReplenishNumber();
+
 }
 
 void
@@ -462,11 +467,15 @@ MultiParticleContainer::InitMultiPhysicsModules ()
     InitQED();
 #endif
 
+}
+
+void
+MultiParticleContainer::InitializeReplenishNumber ()
+{
     if (m_species_to_replenish.size() > 0) {
         auto const& pc = allcontainers[m_species_to_replenish[0]];
         m_total_number_of_particles_for_replenishing = pc->TotalNumberOfParticles();
     }
-
 }
 
 void
