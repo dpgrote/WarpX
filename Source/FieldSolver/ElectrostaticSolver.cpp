@@ -753,135 +753,118 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
                               amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi) const
 {
 
-    // This loop is here as a stub - the solver won't work with max_level > 0.
-    for (int lev = 0; lev <= max_level; lev++) {
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(max_level == 0,
+        "The tridiagonal solver cannot be used with mesh refinement");
 
-        const amrex::Real* dx = Geom(lev).CellSize();
-        const amrex::Real xmin = Geom(lev).ProbLo(0);
-        const amrex::Real xmax = Geom(lev).ProbHi(0);
-        const int nx_total = static_cast<int>( (xmax - xmin)/dx[0] + 0.5_rt );
+    const int lev = 0;
 
-        auto field_boundary_hi0 = WarpX::field_boundary_hi[0];
-        int nx_solve_max = nx_total - 1;
-        if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
-            // Solve for the point on the boundary
-            nx_solve_max = nx_total;
-        }
+    const amrex::Real* dx = Geom(lev).CellSize();
+    const amrex::Real xmin = Geom(lev).ProbLo(0);
+    const amrex::Real xmax = Geom(lev).ProbHi(0);
+    const int nx_total = static_cast<int>( (xmax - xmin)/dx[0] + 0.5_rt );
 
-        // Create a 1-D MultiFab that covers all of x. The tridiag solve
-        // will be done in this MultiFab and then copied out afterwards.
-        const amrex::IntVect lo_total(AMREX_D_DECL(-1,0,0));
-        const amrex::IntVect hi_total(AMREX_D_DECL(nx_total+1,0,0));
-        const amrex::Box box_total(lo_total, hi_total);
-        const BoxArray ba_total(box_total);
-        amrex::DistributionMapping dm_total;
-        amrex::Vector<int> pmap = {0}; // The data will only be on processor 0
-        dm_total.define(pmap);
-        const int ncomps1d = 1;
-        const amrex::IntVect nguard1d(AMREX_D_DECL(1,0,0));
-        const BoxArray ba_total_node = amrex::convert(ba_total, amrex::IntVect::TheNodeVector());
-        auto phi1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d);
-        auto zwork1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d);
-        auto rho1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d);
+    auto field_boundary_hi0 = WarpX::field_boundary_hi[0];
+    int nx_solve_max = nx_total - 1;
+    if (field_boundary_hi0 == FieldBoundaryType::Neumann) {
+        // Solve for the point on the upper boundary
+        nx_solve_max = nx_total;
+    }
 
-        const amrex::Real norm = dx[0]*dx[0]/PhysConst::ep0;
+    // Create a 1-D MultiFab that covers all of x, including guard cells on each end.
+    // The tridiag solve will be done in this MultiFab and then copied out afterwards.
+    const amrex::IntVect lo_total(AMREX_D_DECL(-1,0,0));
+    const amrex::IntVect hi_total(AMREX_D_DECL(nx_total+1,0,0));
+    const amrex::Box box_total(lo_total, hi_total);
+    const BoxArray ba_total(box_total);
+    amrex::DistributionMapping dm_total;
+    amrex::Vector<int> pmap = {0}; // The data will only be on processor 0
+    dm_total.define(pmap);
+    const int ncomps1d = 1;
+    const amrex::IntVect nguard1d(AMREX_D_DECL(1,0,0));
+    const BoxArray ba_total_node = amrex::convert(ba_total, amrex::IntVect::TheNodeVector());
 
-        // Copy previous phi to get the boundary values
-        phi1d_mf.ParallelCopy(*phi[lev], 0, 0, 1, Geom(lev).periodicity());
-        rho1d_mf.ParallelCopy(*rho[lev], 0, 0, 1, Geom(lev).periodicity());
-        rho1d_mf.mult(norm);
+    // Put the data in the pinned arena since the tridiag solver will be done on the CPU, but keep
+    // the data readily accessible from the GPU.
+    auto phi1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d, MFInfo().SetArena(The_Pinned_Arena()));
+    auto zwork1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d, MFInfo().SetArena(The_Pinned_Arena()));
+    auto rho1d_mf = MultiFab(ba_total_node, dm_total, ncomps1d, nguard1d, MFInfo().SetArena(The_Pinned_Arena()));
 
-        // Note that the end points assume Dirichlet boundary conditions.
+    const amrex::Real norm = dx[0]*dx[0]/PhysConst::ep0;
 
-        for ( MFIter mfi(phi1d_mf); mfi.isValid(); ++mfi ) {
-            const auto& phi1d_arr = phi1d_mf.array(mfi);
-            const auto& zwork1d_arr = zwork1d_mf.array(mfi);
-            const auto& rho1d_arr = rho1d_mf.array(mfi);
+    // Copy previous phi to get the boundary values
+    // If 2D, this assumes that the 2nd dimension of each block extends over the full domain,
+    // and that the 2nd dimension was averaged over.
+    phi1d_mf.ParallelCopy(*phi[lev], 0, 0, 1, Geom(lev).periodicity());
+    rho1d_mf.ParallelCopy(*rho[lev], 0, 0, 1, Geom(lev).periodicity());
+    rho1d_mf.mult(norm);
 
-            amrex::Box box_total0 = mfi.tilebox();
-            box_total0.setBig(1, 0); // Needed since with nodal, ny = 2
+    const auto& phi1d_arr = phi1d_mf[0].array();
+    const auto& zwork1d_arr = zwork1d_mf[0].array();
+    const auto& rho1d_arr = rho1d_mf[0].array();
 
-            amrex::ParallelFor( box_total0,
-                [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
-                    amrex::Real diag = zwork1d_arr(nx_solve_max+1,0,0);
-                    if (i == 1) {
-                        diag = 2._rt;
-                        phi1d_arr(1,0,0) = (phi1d_arr(0,0,0) + rho1d_arr(1,0,0))/diag;
-                    }
-                    else if (i > 1 && i < nx_solve_max) {
-                        zwork1d_arr(i,0,0) = -1._rt/diag;
-                        diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
-                        if (i < nx_solve_max) {
-                            phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                        }
-                    }
-                    else if (i == nx_solve_max) {
-                        if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
-                            zwork1d_arr(i,0,0) = -1._rt/diag;
-                            diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
-                            phi1d_arr(i,0,0) = (phi1d_arr(nx_solve_max+1,0,0) + rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                        } else if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
-                            zwork1d_arr(i,0,0) = -2._rt/diag;
-                            diag = 2._rt - (-1._rt)*zwork1d_arr(i,0,0);
-                            phi1d_arr(i,0,0) = (rho1d_arr(i,0,0) - (-1._rt)*phi1d_arr(i-1,0,0))/diag;
-                        }
-                    }
-                    zwork1d_arr(nx_solve_max+1,0,0) = diag;
-                }
-            );
+    // Note that the lower end point assumes Dirichlet boundary condition
+    // The loops are always performed on the CPU
+    amrex::Real diag = 2._rt;
+    phi1d_arr(1,0,0) = (phi1d_arr(0,0,0) + rho1d_arr(1,0,0))/diag;
 
-            amrex::ParallelFor( box_total0,
-                [=] AMREX_GPU_DEVICE (int i, int /* j */, int /* k */) {
-                    const int im = nx_solve_max + 1 - i;
-                    if (im == nx_total+1) {
-                        if ( field_boundary_hi0 == FieldBoundaryType::PEC ) {
-                            // Extrapolate assuming Dirichlet boundary
-                            phi1d_arr(nx_total+1,0,0) = 2._rt*phi1d_arr(nx_total,0,0) - phi1d_arr(nx_total-1,0,0);
-                        }
-                    }
-                    else if (im > 0 && im < nx_solve_max) {
-                        phi1d_arr(im,0,0) = phi1d_arr(im,0,0) - zwork1d_arr(im+1,0,0)*phi1d_arr(im+1,0,0);
-                    }
-                    else if (im == 0) {
-                        // Extrapolate assuming Dirichlet boundary
-                        phi1d_arr(-1,0,0) = 2._rt*phi1d_arr(0,0,0) - phi1d_arr(1,0,0);
-                    }
-                }
-            );
-            if ( field_boundary_hi0 == FieldBoundaryType::Neumann ) {
-                phi1d_arr(nx_total+1,0,0) = phi1d_arr(nx_total-1,0,0);
-            }
+    for (int i_up = 2 ; i_up < nx_solve_max ; i_up++) {
+        zwork1d_arr(i_up,0,0) = -1._rt/diag;
+        diag = 2._rt - (-1._rt)*zwork1d_arr(i_up,0,0);
+        phi1d_arr(i_up,0,0) = (rho1d_arr(i_up,0,0) - (-1._rt)*phi1d_arr(i_up-1,0,0))/diag;
+    }
 
-            /* amrex::Gpu::streamSynchronize(); */
-        }
+    int const imax = nx_solve_max;
+    if (field_boundary_hi0 == FieldBoundaryType::PEC) {
+        zwork1d_arr(imax,0,0) = -1._rt/diag;
+        diag = 2._rt - (-1._rt)*zwork1d_arr(imax,0,0);
+        phi1d_arr(imax,0,0) = (phi1d_arr(imax+1,0,0) + rho1d_arr(imax,0,0) - (-1._rt)*phi1d_arr(imax-1,0,0))/diag;
+    } else if (field_boundary_hi0 == FieldBoundaryType::Neumann) {
+        zwork1d_arr(imax,0,0) = -2._rt/diag;
+        diag = 2._rt - (-1._rt)*zwork1d_arr(imax,0,0);
+        phi1d_arr(imax,0,0) = (rho1d_arr(imax,0,0) - (-1._rt)*phi1d_arr(imax-1,0,0))/diag;
+    }
 
-        // Copy phi1d to phi, including the x guard cell
-        IntVect xghost(AMREX_D_DECL(1,0,0));
-        phi[lev]->ParallelCopy(phi1d_mf, 0, 0, 1, xghost, xghost, Geom(lev).periodicity());
+    for (int i_down = nx_solve_max-1 ; i_down > 0 ; i_down--) {
+        phi1d_arr(i_down,0,0) = phi1d_arr(i_down,0,0) - zwork1d_arr(i_down+1,0,0)*phi1d_arr(i_down+1,0,0);
+    }
+    // Extrapolate into the lower guard cell assuming Dirichlet boundary
+    phi1d_arr(-1,0,0) = 2._rt*phi1d_arr(0,0,0) - phi1d_arr(1,0,0);
 
+    // Extrapolate into the upper guard cell
+    if (field_boundary_hi0 == FieldBoundaryType::PEC) {
+        phi1d_arr(nx_total+1,0,0) = 2._rt*phi1d_arr(nx_total,0,0) - phi1d_arr(nx_total-1,0,0);
+    } else if (field_boundary_hi0 == FieldBoundaryType::Neumann) {
+        phi1d_arr(nx_total+1,0,0) = phi1d_arr(nx_total-1,0,0);
+    }
+
+    // Copy phi1d to phi, including the x guard cell
+    const IntVect xghost(AMREX_D_DECL(1,0,0));
+    phi[lev]->ParallelCopy(phi1d_mf, 0, 0, 1, xghost, xghost, Geom(lev).periodicity());
+
+#ifdef WARPX_DIM_2D
+    // If the tridiag is used with 2D data, it is assumed that the data was averaged over
+    // the second dimension. This loop broadcasts the solution across the second dimension
+    // to fill the space.
 #ifdef _OPENMP
 #    pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-        for ( MFIter mfi(*phi[lev], true); mfi.isValid(); ++mfi )
-        {
-            const auto& phi_arr = phi[lev]->array(mfi);
+    for (MFIter mfi(*phi[lev], true); mfi.isValid(); ++mfi)
+    {
+        const auto& phi_arr = phi[lev]->array(mfi);
 
-            // Copy the data into the main phi array blocks
+        // Expand the box to include the x guard cells
+        amrex::Box tbx_guards = mfi.tilebox(phi[lev]->ixType().toIntVect());
+        tbx_guards.grow(0,1);
 
-            // Expand the box to include the x guard cells
-            amrex::Box tbx_guards = mfi.tilebox( phi[lev]->ixType().toIntVect() );
-            tbx_guards.grow(0,1);
+        amrex::ParallelFor(tbx_guards,
+            [=] AMREX_GPU_DEVICE (int i, int j, int /* k */) {
+                phi_arr(i,j,0) = phi_arr(i,0,0);
+            }
+        );
 
-            amrex::ParallelFor( tbx_guards,
-                [=] AMREX_GPU_DEVICE (int i, int j, int /* k */) {
-                    phi_arr(i,j,0) = phi_arr(i,0,0);
-                }
-            );
-
-        }
     }
+#endif
 }
-
 
 void ElectrostaticSolver::PoissonBoundaryHandler::definePhiBCs ( )
 {
