@@ -99,6 +99,13 @@ LaserParticleContainer::LaserParticleContainer (AmrCore* amr_core, int ispecies,
     getArrWithParser(pp_laser_name, "direction", m_nvec);
     getArrWithParser(pp_laser_name, "polarization", m_p_X);
 
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(m_position.size() == 3,
+        m_laser_name + ".position must have three components.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(m_nvec.size() == 3,
+        m_laser_name + ".direction must have three components.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(m_p_X.size() == 3,
+        m_laser_name + ".polarization must have three components.");
+
     getWithParser(pp_laser_name, "wavelength", m_wavelength);
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
         m_wavelength > 0, "The laser wavelength must be >0.");
@@ -550,6 +557,8 @@ LaserParticleContainer::Evolve (int lev,
 
     amrex::LayoutData<amrex::Real>* cost = WarpX::getCosts(lev);
 
+    const bool has_buffer = cjx;
+
 #ifdef AMREX_USE_OMP
 #pragma omp parallel if (amrex::Gpu::notInLaunchRegion())
 #endif
@@ -578,18 +587,21 @@ LaserParticleContainer::Evolve (int lev,
             auto& uzp = attribs[PIdx::uz];
 
             const long np  = pti.numParticles();
-            // For now, laser particles do not take the current buffers into account
-            const long np_current = np;
-
             plane_Xp.resize(np);
             plane_Yp.resize(np);
             amplitude_E.resize(np);
+
+            // Determine whether particles will deposit on the fine or coarse level
+            long np_current = np;
+            if (lev > 0 && m_deposit_on_main_grid && has_buffer) {
+                np_current = 0;
+            }
 
             if (rho && ! skip_deposition && ! do_not_deposit) {
                 int* AMREX_RESTRICT ion_lev = nullptr;
                 DepositCharge(pti, wp, ion_lev, rho, 0, 0,
                               np_current, thread_num, lev, lev);
-                if (crho) {
+                if (has_buffer) {
                     DepositCharge(pti, wp, ion_lev, crho, 0, np_current,
                                   np-np_current, thread_num, lev, lev-1);
                 }
@@ -628,7 +640,6 @@ LaserParticleContainer::Evolve (int lev,
                                0, np_current, thread_num,
                                lev, lev, dt, relative_time);
 
-                const bool has_buffer = cjx;
                 if (has_buffer)
                 {
                     // Deposit in buffers
@@ -643,7 +654,7 @@ LaserParticleContainer::Evolve (int lev,
                 int* AMREX_RESTRICT ion_lev = nullptr;
                 DepositCharge(pti, wp, ion_lev, rho, 1, 0,
                               np_current, thread_num, lev, lev);
-                if (crho) {
+                if (has_buffer) {
                     DepositCharge(pti, wp, ion_lev, crho, 1, np_current,
                                   np-np_current, thread_num, lev, lev-1);
                 }

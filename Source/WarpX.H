@@ -186,6 +186,10 @@ public:
      */
     static amrex::Vector<ParticleBoundaryType> particle_boundary_hi;
 
+    //! Integers that correspond to the time dependency of J (constant, linear)
+    //! and rho (linear, quadratic) for the PSATD algorithm
+    static short J_in_time;
+    static short rho_in_time;
 
     //! If true, the current is deposited on a nodal grid and then centered onto a staggered grid
     //! using finite centering of order given by #current_centering_nox, #current_centering_noy,
@@ -806,9 +810,8 @@ public:
     void computeB (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >& B,
                    const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi,
                    std::array<amrex::Real, 3> const beta = {{0,0,0}} ) const;
-    void averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) const;
-    void computePhiTriDiagonal ( const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
-                                       amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi ) const;
+    void computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho,
+                                      amrex::Vector<std::unique_ptr<amrex::MultiFab> >& phi) const;
 
     /**
      * \brief
@@ -979,11 +982,22 @@ private:
         const int lev);
     void StoreCurrent (const int lev);
     void RestoreCurrent (const int lev);
-    void ApplyFilterandSumBoundaryJ (
-        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_fp,
-        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_cp,
+    void ApplyFilterJ (
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& current,
         const int lev,
-        PatchType patch_type);
+        const int idim);
+    void ApplyFilterJ (
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& current,
+        const int lev);
+    void SumBoundaryJ (
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& current,
+        const int lev,
+        const int idim,
+        const amrex::Periodicity& period);
+    void SumBoundaryJ (
+        const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& current,
+        const int lev,
+        const amrex::Periodicity& period);
     void NodalSyncJ (
         const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_fp,
         const amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>,3>>& J_cp,
@@ -1099,7 +1113,7 @@ private:
                                         const int centering_noz);
 
     void AllocLevelMFs (int lev, const amrex::BoxArray& ba, const amrex::DistributionMapping& dm,
-                        const amrex::IntVect& ngEB, const amrex::IntVect& ngJ,
+                        const amrex::IntVect& ngEB, amrex::IntVect& ngJ,
                         const amrex::IntVect& ngRho, const amrex::IntVect& ngF,
                         const amrex::IntVect& ngG, const bool aux_is_nodal);
 #ifdef WARPX_USE_PSATD

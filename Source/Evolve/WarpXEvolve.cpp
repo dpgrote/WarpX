@@ -570,16 +570,19 @@ WarpX::OneStep_multiJ (const amrex::Real cur_time)
 
     // 4) Deposit J at relative time -dt with time step dt
     //    (dt[0] denotes the time step on mesh refinement level 0)
-    auto& current = (WarpX::do_current_centering) ? current_fp_nodal : current_fp;
-    mypc->DepositCurrent(current, dt[0], -dt[0]);
-    // Synchronize J: filter, exchange boundary, and interpolate across levels.
-    // With current centering, the nodal current is deposited in 'current',
-    // namely 'current_fp_nodal': SyncCurrent stores the result of its centering
-    // into 'current_fp' and then performs both filtering, if used, and exchange
-    // of guard cells.
-    SyncCurrent(current_fp, current_cp);
-    // Forward FFT of J
-    PSATDForwardTransformJ(current_fp, current_cp);
+    if (J_in_time == JInTime::Linear)
+    {
+        auto& current = (WarpX::do_current_centering) ? current_fp_nodal : current_fp;
+        mypc->DepositCurrent(current, dt[0], -dt[0]);
+        // Synchronize J: filter, exchange boundary, and interpolate across levels.
+        // With current centering, the nodal current is deposited in 'current',
+        // namely 'current_fp_nodal': SyncCurrent stores the result of its centering
+        // into 'current_fp' and then performs both filtering, if used, and exchange
+        // of guard cells.
+        SyncCurrent(current_fp, current_cp);
+        // Forward FFT of J
+        PSATDForwardTransformJ(current_fp, current_cp);
+    }
 
     // Number of depositions for multi-J scheme
     const int n_depose = WarpX::do_multi_J_n_depositions;
@@ -593,13 +596,21 @@ WarpX::OneStep_multiJ (const amrex::Real cur_time)
     for (int i_depose = 0; i_depose < n_loop; i_depose++)
     {
         // Move J deposited previously, from new to old
-        PSATDMoveJNewToJOld();
+        if (J_in_time == JInTime::Linear)
+        {
+            PSATDMoveJNewToJOld();
+        }
 
-        const amrex::Real t_depose = (i_depose-n_depose+1)*sub_dt;
+        const amrex::Real t_depose_current = (J_in_time == JInTime::Linear) ?
+            (i_depose-n_depose+1)*sub_dt : (i_depose-n_depose+0.5_rt)*sub_dt;
 
-        // Deposit new J at relative time t_depose with time step dt
+        // TODO Update this when rho quadratic in time is implemented
+        const amrex::Real t_depose_charge = (i_depose-n_depose+1)*sub_dt;
+
+        // Deposit new J at relative time t_depose_current with time step dt
         // (dt[0] denotes the time step on mesh refinement level 0)
-        mypc->DepositCurrent(current, dt[0], t_depose);
+        auto& current = (WarpX::do_current_centering) ? current_fp_nodal : current_fp;
+        mypc->DepositCurrent(current, dt[0], t_depose_current);
         // Synchronize J: filter, exchange boundary, and interpolate across levels.
         // With current centering, the nodal current is deposited in 'current',
         // namely 'current_fp_nodal': SyncCurrent stores the result of its centering
@@ -615,8 +626,8 @@ WarpX::OneStep_multiJ (const amrex::Real cur_time)
             // Move rho deposited previously, from new to old
             PSATDMoveRhoNewToRhoOld();
 
-            // Deposit rho at relative time t_depose
-            mypc->DepositCharge(rho_fp, t_depose);
+            // Deposit rho at relative time t_depose_charge
+            mypc->DepositCharge(rho_fp, t_depose_charge);
             // Filter, exchange boundary, and interpolate across levels
             SyncRho();
             // Forward FFT of rho_new
@@ -722,7 +733,8 @@ WarpX::OneStep_sub1 (Real curtime)
     PushParticlesandDepose(fine_lev, curtime, DtType::FirstHalf);
     RestrictCurrentFromFineToCoarsePatch(current_fp, current_cp, fine_lev);
     RestrictRhoFromFineToCoarsePatch(rho_fp, rho_cp, fine_lev);
-    ApplyFilterandSumBoundaryJ(current_fp, current_cp, fine_lev, PatchType::fine);
+    if (use_filter) ApplyFilterJ(current_fp, fine_lev);
+    SumBoundaryJ(current_fp, fine_lev, Geom(fine_lev).periodicity());
     ApplyFilterandSumBoundaryRho(rho_fp, rho_cp, fine_lev, PatchType::fine, 0, 2*ncomps);
 
     EvolveB(fine_lev, PatchType::fine, 0.5_rt*dt[fine_lev], DtType::FirstHalf);
@@ -778,7 +790,8 @@ WarpX::OneStep_sub1 (Real curtime)
     PushParticlesandDepose(fine_lev, curtime+dt[fine_lev], DtType::SecondHalf);
     RestrictCurrentFromFineToCoarsePatch(current_fp, current_cp, fine_lev);
     RestrictRhoFromFineToCoarsePatch(rho_fp, rho_cp, fine_lev);
-    ApplyFilterandSumBoundaryJ(current_fp, current_cp, fine_lev, PatchType::fine);
+    if (use_filter) ApplyFilterJ(current_fp, fine_lev);
+    SumBoundaryJ(current_fp, fine_lev, Geom(fine_lev).periodicity());
     ApplyFilterandSumBoundaryRho(rho_fp, rho_cp, fine_lev, PatchType::fine, 0, ncomps);
 
     EvolveB(fine_lev, PatchType::fine, 0.5_rt*dt[fine_lev], DtType::FirstHalf);
