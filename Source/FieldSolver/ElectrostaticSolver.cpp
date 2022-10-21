@@ -234,6 +234,10 @@ WarpX::AddSpaceChargeFieldLabFrame ()
 #endif
     SyncRho(); // Apply filter, perform MPI exchange, interpolate across levels
 
+    if (average_over_y) {
+        averageRhoOverY( rho_fp );
+    }
+
     // beta is zero in lab frame
     // Todo: use simpler finite difference form with beta=0
     std::array<Real, 3> beta = {0._rt};
@@ -249,7 +253,7 @@ WarpX::AddSpaceChargeFieldLabFrame ()
 
     } else {
 
-#if defined(WARPX_DIM_1D_Z)
+#if defined(WARPX_DIM_1D_Z) || defined(WARPX_DIM_XZ)
         // Use the tridiag solver with 1D
         computePhiTriDiagonal(rho_fp, phi_fp);
 #else
@@ -685,6 +689,52 @@ WarpX::computeB (amrex::Vector<std::array<std::unique_ptr<amrex::MultiFab>, 3> >
     }
 }
 
+/* \brief Average the charge density over the y axis.
+          This now assumes that the y axis extends over a single FAB
+          and a single level of refinement.
+
+   \param[inout] Charge density on the grid
+*/
+void
+WarpX::averageRhoOverY (amrex::Vector<std::unique_ptr<amrex::MultiFab> >& rho) const
+{
+    for (int lev = 0; lev <= max_level; lev++) {
+
+#ifdef _OPENMP
+#    pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for ( MFIter mfi(*rho[lev], false); mfi.isValid(); ++mfi )
+        {
+            const Box& tbx  = mfi.tilebox( rho[lev]->ixType().toIntVect() );
+            const int ny = tbx.length(1);
+
+            const auto& rho_arr = rho[lev]->array(mfi);
+
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j > 0) {
+                        rho_arr(i,0,k) += rho_arr(i,j,k);
+                    }
+                }
+            );
+
+            /* amrex::Gpu::streamSynchronize(); */
+
+            /* This won't work on GPU since it assumes that the loop is executed in order. */
+            amrex::ParallelFor( tbx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+                    if (j == 0) {
+                        rho_arr(i,0,k) /= ny;
+                    } else {
+                        rho_arr(i,j,k) = rho_arr(i,0,k);
+                    }
+                }
+            );
+
+        }
+    }
+}
+
 /* \brief Compute the potential by solving Poisson's equation with
           a 1D tridiagonal solve.
 
@@ -867,7 +917,30 @@ WarpX::computePhiTriDiagonal (const amrex::Vector<std::unique_ptr<amrex::MultiFa
     const IntVect xghost(AMREX_D_DECL(1,0,0));
     phi[lev]->ParallelCopy(phi1d_mf, 0, 0, 1, xghost, xghost, Geom(lev).periodicity());
 
+#ifdef WARPX_DIM_XZ
+#ifdef _OPENMP
+#    pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    for ( MFIter mfi(*phi[lev], true); mfi.isValid(); ++mfi )
+    {
+        const auto& phi_arr = phi[lev]->array(mfi);
+
+        // Copy the data into the main phi array blocks
+
+        // Expand the box to include the x guard cells
+        amrex::Box tbx_guards = mfi.tilebox( phi[lev]->ixType().toIntVect() );
+        tbx_guards.grow(0,1);
+
+        amrex::ParallelFor( tbx_guards,
+            [=] AMREX_GPU_DEVICE (int i, int j, int /* k */) {
+                phi_arr(i,j,0) = phi_arr(i,0,0);
+            }
+        );
+
+    }
+#endif
 }
+
 
 void ElectrostaticSolver::PoissonBoundaryHandler::definePhiBCs ( )
 {
