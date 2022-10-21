@@ -32,8 +32,8 @@ ThermalizationCollision::ThermalizationCollision (std::string const collision_na
 
     amrex::ParmParse pp(collision_name);
 
-    getWithParser(pp, "thermal_temperature", m_thermal_temperature);
-    getWithParser(pp, "mean_free_path", m_mean_free_path);
+    utils::parser::getWithParser(pp, "thermal_temperature", m_thermal_temperature);
+    utils::parser::getWithParser(pp, "mean_free_path", m_mean_free_path);
 
     m_use_thermal_v = true;
     m_use_full_velocity = true;
