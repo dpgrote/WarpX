@@ -23,6 +23,7 @@ picmistandard.register_codename(codename)
 # dictionary to map field boundary conditions from picmistandard to WarpX
 BC_map = {
     'open':'pml', 'dirichlet':'pec', 'periodic':'periodic', 'damped':'damped',
+    'absorbing_silver_mueller':'absorbing_silver_mueller',
     'neumann':'neumann', 'none':'none', None:'none'
 }
 
@@ -72,6 +73,12 @@ class Species(picmistandard.PICMI_Species):
     warpx_do_not_deposit: bool, default=False
         Whether or not to deposit the charge and current density for
         for this species
+
+    warpx_do_not_push: bool, default=False
+        Whether or not to push this species
+
+    warpx_do_not_gather: bool, default=False
+        Whether or not to gahter the fields from grids for this species
 
     warpx_random_theta: bool, default=True
         Whether or not to add random angle to the particles in theta
@@ -174,6 +181,8 @@ class Species(picmistandard.PICMI_Species):
         self.self_fields_verbosity = kw.pop('warpx_self_fields_verbosity', None)
         self.save_previous_position = kw.pop('warpx_save_previous_position', None)
         self.do_not_deposit = kw.pop('warpx_do_not_deposit', None)
+        self.do_not_push = kw.pop('warpx_do_not_push', None)
+        self.do_not_gather = kw.pop('warpx_do_not_gather', None)
         self.random_theta = kw.pop('warpx_random_theta', None)
 
         # For particle reflection
@@ -227,6 +236,8 @@ class Species(picmistandard.PICMI_Species):
                                              save_particles_at_eb = self.save_particles_at_eb,
                                              save_previous_position = self.save_previous_position,
                                              do_not_deposit = self.do_not_deposit,
+                                             do_not_push = self.do_not_push,
+                                             do_not_gather = self.do_not_gather,
                                              random_theta = self.random_theta)
 
         # add reflection models
@@ -251,14 +262,6 @@ class Species(picmistandard.PICMI_Species):
             self.species.rigid_advance = 1
             self.species.zinject_plane = injection_plane_position
 
-        for interaction in self.interactions:
-            assert interaction[0] == 'ionization'
-            assert interaction[1] == 'ADK', 'WarpX only has ADK ionization model implemented'
-            self.species.do_field_ionization=1
-            self.species.physical_element=self.particle_type
-            self.species.ionization_product_species = interaction[2].name
-            self.species.ionization_initial_level = self.charge_state
-            self.species.charge = 'q_e'
 
 picmistandard.PICMI_MultiSpecies.Species_class = Species
 class MultiSpecies(picmistandard.PICMI_MultiSpecies):
@@ -405,6 +408,8 @@ class UniformFluxDistribution(picmistandard.PICMI_UniformFluxDistribution, Densi
         species.flux_normal_axis = self.flux_normal_axis
         species.surface_flux_pos = self.surface_flux_position
         species.flux_direction = self.flux_direction
+        species.flux_tmin = self.flux_tmin
+        species.flux_tmax = self.flux_tmax
 
         # --- Use specific attributes for flux injection
         species.injection_style = "nfluxpercell"
@@ -526,6 +531,10 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
 
     warpx_potential_hi_z: float, default=0.
        Electrostatic potential on the upper longitudinal boundary
+
+    warpx_reflect_all_velocities: bool default=False
+        Whether the sign of all of the particle velocities are changed upon
+        reflection on a boundary, or only the velocity normal to the surface
     """
     def init(self, kw):
         self.max_grid_size = kw.pop('warpx_max_grid_size', 32)
@@ -541,6 +550,7 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
         self.potential_ymax = None
         self.potential_zmin = kw.pop('warpx_potential_lo_z', None)
         self.potential_zmax = kw.pop('warpx_potential_hi_z', None)
+        self.reflect_all_velocities = kw.pop('warpx_reflect_all_velocities', None)
 
         # Geometry
         # Set these as soon as the information is available
@@ -571,6 +581,7 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
         pywarpx.boundary.field_hi = [BC_map[bc] for bc in self.upper_boundary_conditions]
         pywarpx.boundary.particle_lo = self.lower_boundary_conditions_particles
         pywarpx.boundary.particle_hi = self.upper_boundary_conditions_particles
+        pywarpx.boundary.reflect_all_velocities = self.reflect_all_velocities
 
         if self.moving_window_velocity is not None and np.any(np.not_equal(self.moving_window_velocity, 0.)):
             pywarpx.warpx.do_moving_window = 1
@@ -1201,6 +1212,19 @@ class Mirror(picmistandard.PICMI_Mirror):
         pywarpx.warpx.mirror_z_npoints.append(self.number_of_cells)
 
 
+class FieldIonization(picmistandard.PICMI_FieldIonization):
+    """
+    WarpX only has ADK ionization model implemented.
+    """
+    def initialize_inputs(self):
+        assert self.model == 'ADK', 'WarpX only has ADK ionization model implemented'
+        self.ionized_species.species.do_field_ionization = 1
+        self.ionized_species.species.physical_element = self.ionized_species.particle_type
+        self.ionized_species.species.ionization_product_species = self.product_species.name
+        self.ionized_species.species.ionization_initial_level = self.ionized_species.charge_state
+        self.ionized_species.species.charge = 'q_e'
+
+
 class CoulombCollisions(picmistandard.base._ClassWithInit):
     """
     Custom class to handle setup of binary Coulmb collisions in WarpX. If
@@ -1328,12 +1352,15 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
         Analytic expression defining the potential. Can only be specified
         when the solver is electrostatic.
 
+    cover_multiple_cuts: bool, default=None
+        Whether to cover cells with multiple cuts.
+        (If False, this will raise an error if some cells have multiple cuts)
 
     Parameters used in the analytic expressions should be given as additional keyword arguments.
 
     """
     def __init__(self, implicit_function=None, stl_file=None, stl_scale=None, stl_center=None, stl_reverse_normal=False,
-                 potential=None, **kw):
+                 potential=None, cover_multiple_cuts=None, **kw):
 
         assert stl_file is None or implicit_function is None, Exception('Only one between implicit_function and '
                                                                             'stl_file can be specified')
@@ -1351,6 +1378,8 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
         self.stl_reverse_normal = stl_reverse_normal
 
         self.potential = potential
+
+        self.cover_multiple_cuts = cover_multiple_cuts
 
         # Handle keyword arguments used in expressions
         self.user_defined_kw = {}
@@ -1379,6 +1408,8 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
             pywarpx.eb2.stl_scale = self.stl_scale
             pywarpx.eb2.stl_center = self.stl_center
             pywarpx.eb2.stl_reverse_normal = self.stl_reverse_normal
+
+        pywarpx.eb2.cover_multiple_cuts = self.cover_multiple_cuts
 
         if self.potential is not None:
             assert isinstance(solver, ElectrostaticSolver), Exception('The potential is only supported with the ElectrostaticSolver')
@@ -1506,6 +1537,9 @@ class Simulation(picmistandard.PICMI_Simulation):
         Controls the random numbers used for initialization.
         This parameter should only be used for testing and continuous integration.
 
+    warpx_random_seed: string or int, optional
+        (See documentation)
+
     warpx_do_dynamic_scheduling: bool, default=True
         Whether to do dynamic scheduling with OpenMP
 
@@ -1539,6 +1573,12 @@ class Simulation(picmistandard.PICMI_Simulation):
 
     warpx_amr_restart: string, optional
         The name of the restart to use
+
+    warpx_amrex_the_arena_is_managed: bool, optional
+        Whether to use managed memory in the AMReX Arena
+
+    warpx_amrex_the_arena_init_size: long int, optional
+        The amount of memory in bytes to allocate in the Arena.
 
     warpx_zmax_plasma_to_compute_max_step: float, optional
         Sets the simulation run time based on the maximum z value
@@ -1579,6 +1619,7 @@ class Simulation(picmistandard.PICMI_Simulation):
         self.field_centering_order = kw.pop('warpx_field_centering_order', None)
         self.current_centering_order = kw.pop('warpx_current_centering_order', None)
         self.serialize_initial_conditions = kw.pop('warpx_serialize_initial_conditions', None)
+        self.random_seed = kw.pop('warpx_random_seed', None)
         self.do_dynamic_scheduling = kw.pop('warpx_do_dynamic_scheduling', None)
         self.load_balance_intervals = kw.pop('warpx_load_balance_intervals', None)
         self.load_balance_efficiency_ratio_threshold = kw.pop('warpx_load_balance_efficiency_ratio_threshold', None)
@@ -1590,6 +1631,8 @@ class Simulation(picmistandard.PICMI_Simulation):
         self.use_fdtd_nci_corr = kw.pop('warpx_use_fdtd_nci_corr', None)
         self.amr_check_input = kw.pop('warpx_amr_check_input', None)
         self.amr_restart = kw.pop('warpx_amr_restart', None)
+        self.amrex_the_arena_is_managed = kw.pop('warpx_amrex_the_arena_is_managed', None)
+        self.amrex_the_arena_init_size = kw.pop('warpx_amrex_the_arena_init_size', None)
         self.zmax_plasma_to_compute_max_step = kw.pop('warpx_zmax_plasma_to_compute_max_step', None)
         self.compute_max_step_from_btd = kw.pop('warpx_compute_max_step_from_btd', None)
 
@@ -1637,6 +1680,8 @@ class Simulation(picmistandard.PICMI_Simulation):
         pywarpx.warpx.do_multi_J = self.do_multi_J
         pywarpx.warpx.do_multi_J_n_depositions = self.do_multi_J_n_depositions
         pywarpx.warpx.serialize_initial_conditions = self.serialize_initial_conditions
+        pywarpx.warpx.random_seed = self.random_seed
+
         pywarpx.warpx.do_dynamic_scheduling = self.do_dynamic_scheduling
 
         pywarpx.particles.use_fdtd_nci_corr = self.use_fdtd_nci_corr
@@ -1683,6 +1728,10 @@ class Simulation(picmistandard.PICMI_Simulation):
                                               self.injection_plane_positions[i],
                                               self.injection_plane_normal_vectors[i])
 
+        for interaction in self.interactions:
+            assert(isinstance(interaction, FieldIonization))
+            interaction.initialize_inputs()
+
         if self.collisions is not None:
             pywarpx.collisions.collision_names = []
             for collision in self.collisions:
@@ -1704,6 +1753,12 @@ class Simulation(picmistandard.PICMI_Simulation):
 
         if self.amr_restart:
             pywarpx.amr.restart = self.amr_restart
+
+        if self.amrex_the_arena_is_managed is not None:
+            pywarpx.amrex.the_arena_is_managed = self.amrex_the_arena_is_managed
+
+        if self.amrex_the_arena_init_size is not None:
+            pywarpx.amrex.the_arena_init_size = self.amrex_the_arena_init_size
 
     def initialize_warpx(self, mpi_comm=None):
         if self.warpx_initialized:

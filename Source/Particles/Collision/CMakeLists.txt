@@ -1,9 +1,12 @@
-target_sources(WarpX
-  PRIVATE
-    CollisionHandler.cpp
-    CollisionBase.cpp
-    ThermalizationCollision.cpp
-)
+foreach(D IN LISTS WarpX_DIMS)
+    warpx_set_suffix_dims(SD ${D})
+    target_sources(WarpX_${SD}
+      PRIVATE
+        CollisionHandler.cpp
+        CollisionBase.cpp
+        ThermalizationCollision.cpp
+    )
+endforeach()
 
 add_subdirectory(BinaryCollision)
 add_subdirectory(BackgroundMCC)
