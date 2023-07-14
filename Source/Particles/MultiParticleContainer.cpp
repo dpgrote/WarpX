@@ -972,7 +972,7 @@ MultiParticleContainer::ReplenishPlasma ()
                 PhysicalParticleContainer * pc_r = dynamic_cast<PhysicalParticleContainer *>(allcontainers[ir].get());
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(pc_r, "ERROR: Replenished species must be PhysicalParticleContainer");
 
-                InjectorMomentum* inj_mom = pc_r->plasma_injector->getInjectorMomentum();
+                InjectorMomentum* inj_mom = pc_r->plasma_injector->getInjectorMomentumDevice();
 
                 // Update NextID to include particles created in this function
                 Long pid;
