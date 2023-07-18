@@ -23,7 +23,7 @@ struct FieldAccessorMacroscopic
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     FieldAccessorMacroscopic ( amrex::Array4<amrex::Real const> const a_field,
                                amrex::Array4<amrex::Real> const& a_parameter)
-        : m_field(a_field), m_parameter(a_parameter) {}
+        : m_field(a_field), m_parameter(a_parameter), begin(a_field.begin), end(a_field.end) {}
 
     /**
      * \brief return field value at (i,j,k,ncomp) scaled by (1/m_getParameter(x,y,z))
@@ -47,6 +47,9 @@ private:
     amrex::Array4<amrex::Real const> const m_field;
     /** Array4 of the macroscopic parameter used to divide m_field in the operator() */
     amrex::Array4<amrex::Real const> const m_parameter;
+public:
+    amrex::Dim3 begin;
+    amrex::Dim3 end;
 };
 
 

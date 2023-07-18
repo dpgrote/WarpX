@@ -165,8 +165,8 @@ WarpX::EvolveImplicitPicard (int numsteps)
         // Particles have p^{n} and x^{n}.
 
         // E and B are up-to-date inside the domain only
-        /* FillBoundaryE(guard_cells.ng_alloc_EB); */
-        /* FillBoundaryB(guard_cells.ng_alloc_EB); */
+        FillBoundaryE(guard_cells.ng_alloc_EB);
+        FillBoundaryB(guard_cells.ng_alloc_EB);
 
         // Save the values at the start of the time step,
         // copying particle data to x_n etc.
@@ -216,7 +216,7 @@ WarpX::EvolveImplicitPicard (int numsteps)
             // Updates Efield_fp so it holds the new E at n+1/2
             EvolveE(0.5_rt*dt[0]);
             // WarpX::sync_nodal_points is used to avoid instability
-            FillBoundaryE(guard_cells.ng_alloc_EB, WarpX::sync_nodal_points);
+            /* FillBoundaryE(guard_cells.ng_alloc_EB, WarpX::sync_nodal_points); */
             ApplyEfieldBoundary(0, PatchType::fine);
 
             if (picard_iteration_tolerance > 0. || iteration_count == max_picard_iterations) {
@@ -235,7 +235,7 @@ WarpX::EvolveImplicitPicard (int numsteps)
             // This updates Bfield_fp so it holds the new B at n+1/2
             EvolveB(0.5_rt*dt[0], DtType::Full);
             // WarpX::sync_nodal_points is used to avoid instability
-            FillBoundaryB(guard_cells.ng_alloc_EB, WarpX::sync_nodal_points);
+            /* FillBoundaryB(guard_cells.ng_alloc_EB, WarpX::sync_nodal_points); */
             ApplyBfieldBoundary(0, PatchType::fine, DtType::Full);
 
             // The B field update needs

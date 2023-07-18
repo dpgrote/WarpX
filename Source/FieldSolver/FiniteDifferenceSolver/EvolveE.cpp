@@ -145,9 +145,22 @@ void FiniteDifferenceSolver::EvolveECartesian (
         int const n_coefs_z = m_stencil_coefs_z.size();
 
         // Extract tileboxes for which to loop
-        Box const& tex  = mfi.tilebox(Efield[0]->ixType().toIntVect());
-        Box const& tey  = mfi.tilebox(Efield[1]->ixType().toIntVect());
-        Box const& tez  = mfi.tilebox(Efield[2]->ixType().toIntVect());
+        Box tex  = (*Efield[0])[mfi].box();
+        Box tey  = (*Efield[1])[mfi].box();
+        Box tez  = (*Efield[2])[mfi].box();
+
+        /* amrex::Print() << "Ex " << Ex.begin << " " << Ex.end << "\n"; */
+        /* amrex::Print() << "Ey " << Ey.begin << " " << Ey.end << "\n"; */
+        /* amrex::Print() << "Ez " << Ez.begin << " " << Ez.end << "\n"; */
+        /* amrex::Print() << "Bx " << Bx.begin << " " << Bx.end << "\n"; */
+        /* amrex::Print() << "By " << By.begin << " " << By.end << "\n"; */
+        /* amrex::Print() << "Bz " << Bz.begin << " " << Bz.end << "\n"; */
+
+        /* tex.growLo(1, -1); */
+        /* tex.growHi(1, -1); */
+        /* tey.grow(-1); */
+        /* tez.growLo(0, -1); */
+        /* tez.growHi(0, -1); */
 
         // Loop over the cells and update the fields
         amrex::ParallelFor(tex, tey, tez,

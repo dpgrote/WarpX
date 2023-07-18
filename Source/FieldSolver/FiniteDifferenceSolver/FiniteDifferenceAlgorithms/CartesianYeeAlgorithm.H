@@ -10,10 +10,12 @@
 
 #include "FieldAccessorFunctors.H"
 #include "Utils/WarpXConst.H"
+#include "Utils/Parser/ParserUtils.H"
 
 #include <AMReX.H>
 #include <AMReX_Array4.H>
 #include <AMReX_Gpu.H>
+#include <AMReX_ParmParse.H>
 #include <AMReX_REAL.H>
 
 #include <array>
@@ -60,7 +62,13 @@ struct CartesianYeeAlgorithm {
      */
     static amrex::IntVect GetMaxGuardCell () {
         // The yee solver requires one guard cell in each dimension
-        return (amrex::IntVect(AMREX_D_DECL(1,1,1)));
+        int ngx = 1, ngy = 1, ngz = 1;
+        const amrex::ParmParse pp_grid("grid");
+        utils::parser::queryWithParser(pp_grid, "nx_guard", ngx);
+        utils::parser::queryWithParser(pp_grid, "ny_guard", ngy);
+        utils::parser::queryWithParser(pp_grid, "nz_guard", ngz);
+
+        return (amrex::IntVect(AMREX_D_DECL(ngx,ngy,ngz)));
     }
 
     /**
@@ -96,7 +104,9 @@ struct CartesianYeeAlgorithm {
         return 0._rt; // 1D Cartesian: derivative along x is 0
 #else
         amrex::Real const inv_dx = coefs_x[0];
-        return inv_dx*( F(i,j,k,ncomp) - F(i-1,j,k,ncomp) );
+        const int ii = (i < F.end.x ? i : F.begin.x);
+        const int im1 = (i > F.begin.x ? i - 1 : F.end.x - 1);
+        return inv_dx*( F(ii,j,k,ncomp) - F(im1,j,k,ncomp) );
 #endif
     }
 
@@ -180,7 +190,9 @@ struct CartesianYeeAlgorithm {
 #if defined WARPX_DIM_3D
         return inv_dz*( F(i,j,k,ncomp) - F(i,j,k-1,ncomp) );
 #elif (defined WARPX_DIM_XZ)
-        return inv_dz*( F(i,j,k,ncomp) - F(i,j-1,k,ncomp) );
+        const int jj = (j < F.end.y ? j : F.begin.y);
+        const int jm1 = (j > F.begin.y ? j - 1 : F.end.y - 1);
+        return inv_dz*( F(i,jj,k,ncomp) - F(i,jm1,k,ncomp) );
 #elif (defined WARPX_DIM_1D_Z)
         return inv_dz*( F(i,j,k,ncomp) - F(i-1,j,k,ncomp) );
 #endif

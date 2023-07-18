@@ -139,9 +139,9 @@ void FiniteDifferenceSolver::EvolveBCartesian (
         int const n_coefs_z = m_stencil_coefs_z.size();
 
         // Extract tileboxes for which to loop
-        Box const& tbx  = mfi.tilebox(Bfield[0]->ixType().toIntVect());
-        Box const& tby  = mfi.tilebox(Bfield[1]->ixType().toIntVect());
-        Box const& tbz  = mfi.tilebox(Bfield[2]->ixType().toIntVect());
+        Box tbx = (*Bfield[0])[mfi].box();
+        Box tby = (*Bfield[1])[mfi].box();
+        Box tbz = (*Bfield[2])[mfi].box();
 
         // Loop over the cells and update the fields
         amrex::ParallelFor(tbx, tby, tbz,
