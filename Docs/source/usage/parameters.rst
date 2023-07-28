@@ -2474,7 +2474,7 @@ In-situ capabilities can be used by turning on Sensei or Ascent (provided they a
 BackTransformed Diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``BackTransformed`` diag type are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame. This option can be set using ``<diag_name>.diag_type = BackTransformed``. Note that this diagnostic is not currently supported for RZ.  Additional options for this diagnostic include:
+``BackTransformed`` diag type are used when running a simulation in a boosted frame, to reconstruct output data to the lab frame. This option can be set using ``<diag_name>.diag_type = BackTransformed``. Additional options for this diagnostic include:
 
 * ``<diag_name>.num_snapshots_lab`` (`integer`)
     Only used when ``<diag_name>.diag_type`` is ``BackTransformed``.
@@ -2517,6 +2517,20 @@ BackTransformed Diagnostics
     to frequent flushes of the lab-frame data. The other option is to keep the default
     value for buffer size and use slices to reduce the memory footprint and maintain
     optimum I/O performance.
+
+* ``<diag_name>.do_back_transformed_fields`` (`0` or `1`) optional (default `1`)
+    Only used when ``<diag_name>.diag_type`` is ``BackTransformed``
+    Whether to back transform the fields or not.
+    Note that for ``BackTransformed`` diagnostics, at least one of the options
+    ``<diag_name>.do_back_transformed_fields`` or ``<diag_name>.do_back_transformed_particles`` must be 1.
+
+* ``<diag_name>.do_back_transformed_particles`` (`0` or `1`) optional (default `1`)
+    Only used when ``<diag_name>.diag_type`` is ``BackTransformed``
+    Whether to back transform the particle data or not.
+    Note that for ``BackTransformed`` diagnostics, at least one of the options
+    ``<diag_name>.do_back_transformed_fields`` or ``<diag_name>.do_back_transformed_particles`` must be 1.
+    If ``diag_name.write_species = 0``, then ``<diag_name>.do_back_transformed_particles`` will be set
+    to 0 in the simulation and particles will not be backtransformed.
 
 Boundary Scraping Diagnostics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2661,14 +2675,11 @@ Reduced Diagnostics
         the value of the Poynting Vector :math:`|S|` of the electromagnetic fields,
         at mesh refinement levels from  0 to :math:`n`, at point (:math:`x`, :math:`y`, :math:`z`).
 
-        Note: the norms are always interpolated to the measurement point before they are written
-        to file. The electromagnetic field components are interpolated to the measurement point
-        by default, but can they be saved as non-averaged by setting
-        ``<reduced_diags_name>.raw_fields = true``, in which case the raw fields for the cell
-        containing the measurement point are saved. In RZ geometry, this only saves the
-        0'th azimuthal mode component of the fields.
+        The fields are always interpolated to the measurement point.
         The interpolation order can be set by specifying ``<reduced_diags_name>.interp_order``,
-        otherwise it is set to ``1``.
+        defaulting to ``1``.
+        In RZ geometry, this only saves the
+        0'th azimuthal mode component of the fields.
         Integrated electric and magnetic field components can instead be obtained by specifying
         ``<reduced_diags_name>.integrate == true``.
         In a *moving window* simulation, the FieldProbe can be set to follow the moving frame by specifying ``<reduced_diags_name>.do_moving_window_FP = 1`` (default 0).
