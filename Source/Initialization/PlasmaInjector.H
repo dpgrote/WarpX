@@ -59,6 +59,8 @@ public:
 
     amrex::Vector<int> num_particles_per_cell_each_dim;
 
+    amrex::Real getDensity (amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
+
     // gamma * beta
     amrex::XDim3 getMomentum (amrex::Real x, amrex::Real y, amrex::Real z) const noexcept;
 

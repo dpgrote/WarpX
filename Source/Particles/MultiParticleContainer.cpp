@@ -934,13 +934,10 @@ MultiParticleContainer::ReplenishPlasma ()
                 const Real density_min = pc_r->plasma_injector->density_min;
                 const Real density_max = pc_r->plasma_injector->density_max;
 
-                InjectorDensity* inj_rho = pc_r->plasma_injector->getInjectorDensity();
-                InjectorMomentum* inj_mom = pc_r->plasma_injector->getInjectorMomentumDevice();
-
                 // Loop over all new particles to calculated the momentum
                 for (long ip=0 ; ip < n_new_particles ; ip++) {
 
-                    amrex::Real dens = inj_rho->getDensity(particle_x[ip], particle_y[ip], particle_z[ip]);
+                    amrex::Real dens = pc_r->plasma_injector->getDensity(particle_x[ip], particle_y[ip], particle_z[ip]);
 
                     dens = amrex::min(dens, density_max);
 
@@ -965,7 +962,7 @@ MultiParticleContainer::ReplenishPlasma ()
                     p.pos(0) = particle_z[ip];
 #endif
 
-                    amrex::XDim3 u = inj_mom->getMomentum(particle_x[ip], particle_y[ip], particle_z[ip], engine);
+                    amrex::XDim3 u = pc_r->plasma_injector->getMomentum(particle_x[ip], particle_y[ip], particle_z[ip]);
 
                     pinned_tile.push_back(p);
                     pinned_tile.push_back_real(PIdx::w, weight);

@@ -734,6 +734,13 @@ void PlasmaInjector::parseMomentum (const amrex::ParmParse& pp)
     }
 }
 
+amrex::Real PlasmaInjector::getDensity (amrex::Real x,
+                                        amrex::Real y,
+                                        amrex::Real z) const noexcept
+{
+    return h_inj_rho->getDensity(x, y, z);
+}
+
 amrex::XDim3 PlasmaInjector::getMomentum (amrex::Real x,
                                           amrex::Real y,
                                           amrex::Real z) const noexcept
