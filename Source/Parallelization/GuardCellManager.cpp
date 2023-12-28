@@ -139,6 +139,10 @@ guardCellManager::Init (
     if (electromagnetic_solver_id != ElectromagneticSolverAlgo::None &&
         electromagnetic_solver_id != ElectromagneticSolverAlgo::HybridPIC)
     {
+        const ParmParse pp_particles("particles");
+        amrex::Real maximum_velocity = PhysConst::c;
+        utils::parser::queryWithParser(pp_particles, "maximum_velocity", maximum_velocity);
+
         for (int i = 0; i < AMREX_SPACEDIM; i++)
         {
             amrex::Real dt_Rho = dt;
@@ -155,8 +159,8 @@ guardCellManager::Init (
                     dt_J = dt;
                 }
             }
-            ng_alloc_Rho[i] += static_cast<int>(std::ceil(PhysConst::c * dt_Rho / dx[i]));
-            ng_alloc_J[i]   += static_cast<int>(std::ceil(PhysConst::c * dt_J / dx[i]));
+            ng_alloc_Rho[i] += static_cast<int>(std::ceil(maximum_velocity * dt_Rho / dx[i]));
+            ng_alloc_J[i]   += static_cast<int>(std::ceil(maximum_velocity * dt_J / dx[i]));
         }
     }
 
