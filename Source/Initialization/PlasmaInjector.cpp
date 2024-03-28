@@ -266,11 +266,11 @@ void PlasmaInjector::setupGaussianBeam (const amrex::ParmParse& pp_species_name)
 void PlasmaInjector::setupNRandomPerCell (const amrex::ParmParse& pp_species_name)
 {
     utils::parser::getWithParser(
-        pp_species_name, "num_particles_per_cell", num_particles_per_cell);
+        pp_species_name, "num_particles_per_cell", num_particles_per_cell_real);
 #if WARPX_DIM_RZ
     if (WarpX::n_rz_azimuthal_modes > 1) {
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
-        num_particles_per_cell>=2*WarpX::n_rz_azimuthal_modes,
+        num_particles_per_cell_real>=2*WarpX::n_rz_azimuthal_modes,
         "Error: For accurate use of WarpX cylindrical geometry the number "
         "of particles should be at least two times n_rz_azimuthal_modes "
         "(Please visit PR#765 for more information.)");
@@ -415,9 +415,9 @@ void PlasmaInjector::setupNuniformPerCell (const amrex::ParmParse& pp_species_na
 #else
     d_inj_pos = h_inj_pos.get();
 #endif
-    num_particles_per_cell = num_particles_per_cell_each_dim[0] *
-                             num_particles_per_cell_each_dim[1] *
-                             num_particles_per_cell_each_dim[2];
+    num_particles_per_cell_real = num_particles_per_cell_each_dim[0] *
+                                  num_particles_per_cell_each_dim[1] *
+                                  num_particles_per_cell_each_dim[2];
     SpeciesUtils::parseDensity(species_name, h_inj_rho, density_parser);
     SpeciesUtils::parseMomentum(species_name, "nuniformpercell", h_inj_mom,
         ux_parser, uy_parser, uz_parser, h_mom_temp, h_mom_vel);

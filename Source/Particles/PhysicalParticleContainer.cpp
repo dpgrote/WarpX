@@ -934,7 +934,7 @@ PhysicalParticleContainer::AddPlasma (int lev, RealBox part_realbox)
     const Geometry& geom = Geom(lev);
     if (!part_realbox.ok()) part_realbox = geom.ProbDomain();
 
-    const int num_ppc = plasma_injector->num_particles_per_cell;
+    const amrex::Real num_ppc_real = plasma_injector->num_particles_per_cell_real;
 #ifdef WARPX_DIM_RZ
     Real rmax = std::min(plasma_injector->xmax, part_realbox.hi(0));
 #endif
@@ -1046,7 +1046,7 @@ PhysicalParticleContainer::AddPlasma (int lev, RealBox part_realbox)
         if (refine_injection) {
             fine_overlap_box = overlap_box & amrex::shift(fine_injection_box, -shifted);
         }
-        amrex::ParallelFor(overlap_box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        amrex::ParallelForRNG(overlap_box, [=] AMREX_GPU_DEVICE (int i, int j, int k, amrex::RandomEngine const& engine) noexcept
         {
             const IntVect iv(AMREX_D_DECL(i, j, k));
             auto lo = getCellCoords(overlap_corner, dx, {0._rt, 0._rt, 0._rt}, iv);
@@ -1060,7 +1060,6 @@ PhysicalParticleContainer::AddPlasma (int lev, RealBox part_realbox)
                 auto index = overlap_box.index(iv);
                 const int r = (fine_overlap_box.ok() && fine_overlap_box.contains(iv))?
                     (AMREX_D_TERM(lrrfac[0],*lrrfac[1],*lrrfac[2])) : (1);
-                pcounts[index] = num_ppc*r;
                 // update pcount by checking if cell-corners or cell-center
                 // has non-zero density
                 const auto xlim = GpuArray<Real, 3>{lo.x,(lo.x+hi.x)/2._rt,hi.x};
@@ -1078,7 +1077,7 @@ PhysicalParticleContainer::AddPlasma (int lev, RealBox part_realbox)
                 };
                 const int flag_pcount = checker();
                 if (flag_pcount == 1) {
-                    pcounts[index] = num_ppc*r;
+                    pcounts[index] = static_cast<int>(num_ppc_real + amrex::Random(engine))*r;
                 } else {
                     pcounts[index] = 0;
                 }

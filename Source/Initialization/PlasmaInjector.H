@@ -61,7 +61,6 @@ public:
     // bool: whether the region defined by lo and hi overlaps with the plasma region
     bool overlapsWith (const amrex::XDim3& lo, const amrex::XDim3& hi) const noexcept;
 
-    int num_particles_per_cell;
     amrex::Real num_particles_per_cell_real;
 
     amrex::Vector<int> num_particles_per_cell_each_dim;
