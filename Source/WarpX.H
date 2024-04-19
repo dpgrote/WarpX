@@ -135,6 +135,7 @@ public:
     void UpdateMagneticFieldAndApplyBCs ( const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > >& a_Bn,
                                amrex::Real a_thetadt );
     void ApplyMagneticFieldBCs ();
+    void SpectralSourceFreeFieldAdvance();
     void FinishMagneticFieldAndApplyBCs ( const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > >& a_Bn,
                                amrex::Real a_theta );
     void FinishImplicitField ( amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>, 3 > >& Field_fp,
@@ -546,6 +547,7 @@ public:
 
     [[nodiscard]] const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>,3>>& getEfield_fp_vec() const {return Efield_fp;}
     [[nodiscard]] const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>,3>>& getBfield_fp_vec() const {return Bfield_fp;}
+    [[nodiscard]] const amrex::Vector<std::array< std::unique_ptr<amrex::MultiFab>,3>>& getcurrent_fp_vec() const {return current_fp;}
 
     [[nodiscard]] bool DoPML () const {return do_pml;}
     [[nodiscard]] bool DoFluidSpecies () const {return do_fluid_species;}

@@ -9,5 +9,6 @@
 
 #include "SemiImplicitEM.H"
 #include "ThetaImplicitEM.H"
+#include "StrangImplicitSpectralEM.H"
 
 #endif
