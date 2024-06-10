@@ -109,17 +109,15 @@ namespace ApplyParticleBoundaries {
     */
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     void
-    apply_boundaries (
-#ifndef WARPX_DIM_1D_Z
-              amrex::ParticleReal& x, amrex::Real xmin, amrex::Real xmax,
-#endif
-#if (defined WARPX_DIM_3D) || (defined WARPX_DIM_RZ)
-                      amrex::ParticleReal& y,
-#endif
-#if (defined WARPX_DIM_3D)
-                      amrex::Real ymin, amrex::Real ymax,
-#endif
-                      amrex::ParticleReal& z, amrex::Real zmin, amrex::Real zmax,
+    apply_boundaries ([[maybe_unused]] amrex::ParticleReal& x,
+                      [[maybe_unused]] amrex::Real xmin,
+                      [[maybe_unused]] amrex::Real xmax,
+                      [[maybe_unused]] amrex::ParticleReal& y,
+                      [[maybe_unused]] amrex::Real ymin,
+                      [[maybe_unused]] amrex::Real ymax,
+                      [[maybe_unused]] amrex::ParticleReal& z,
+                      [[maybe_unused]] amrex::Real zmin,
+                      [[maybe_unused]] amrex::Real zmax,
                       amrex::ParticleReal& ux, amrex::ParticleReal& uy, amrex::ParticleReal& uz,
                       bool& particle_lost,
                       ParticleBoundaries::ParticleBoundariesData const& boundaries,

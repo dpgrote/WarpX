@@ -1563,6 +1563,17 @@ WarpXParticleContainer::ApplyBoundaryConditions (){
 
     auto boundary_conditions = m_boundary_conditions.data;
 
+    amrex::Box const & domain = Geom(0).Domain();
+    std::array<amrex::Real,3> xyzmin = WarpX::LowerCorner(domain, 0, 0._rt);
+    std::array<amrex::Real,3> xyzmax = WarpX::UpperCorner(domain, 0, 0._rt);
+
+    const amrex::Real xmin = xyzmin[0];
+    const amrex::Real xmax = xyzmax[0];
+    const amrex::Real ymin = xyzmin[1];
+    const amrex::Real ymax = xyzmax[1];
+    const amrex::Real zmin = xyzmin[2];
+    const amrex::Real zmax = xyzmax[2];
+
     for (int lev = 0; lev <= finestLevel(); ++lev)
     {
 #ifdef AMREX_USE_OMP
@@ -1572,16 +1583,6 @@ WarpXParticleContainer::ApplyBoundaryConditions (){
         {
             auto GetPosition = GetParticlePosition<PIdx>(pti);
             auto SetPosition = SetParticlePosition<PIdx>(pti);
-#ifndef WARPX_DIM_1D_Z
-            const Real xmin = Geom(lev).ProbLo(0);
-            const Real xmax = Geom(lev).ProbHi(0);
-#endif
-#ifdef WARPX_DIM_3D
-            const Real ymin = Geom(lev).ProbLo(1);
-            const Real ymax = Geom(lev).ProbHi(1);
-#endif
-            const Real zmin = Geom(lev).ProbLo(WARPX_ZINDEX);
-            const Real zmax = Geom(lev).ProbHi(WARPX_ZINDEX);
 
             ParticleTileType& ptile = ParticlesAt(lev, pti);
 
@@ -1604,16 +1605,8 @@ WarpXParticleContainer::ApplyBoundaryConditions (){
                     // Note that for RZ, (x, y, z) is actually (r, theta, z).
 
                     bool particle_lost = false;
-                    ApplyParticleBoundaries::apply_boundaries(
-#ifndef WARPX_DIM_1D_Z
-                                                              x, xmin, xmax,
-#endif
-#if (defined WARPX_DIM_3D) || (defined WARPX_DIM_RZ)
-                                                              y,
-#endif
-#if (defined WARPX_DIM_3D)
-                                                              ymin, ymax,
-#endif
+                    ApplyParticleBoundaries::apply_boundaries(x, xmin, xmax,
+                                                              y, ymin, ymax,
                                                               z, zmin, zmax,
                                                               ux[i], uy[i], uz[i], particle_lost,
                                                               boundary_conditions, engine);
