@@ -130,6 +130,10 @@ namespace ablastr::fields
         /** the MR level of this (i)MultiFab */
         int m_level = 0;
 
+        /** Name of the MultiFab in a checkpoint file.
+         *  If the name is an empty string, it is not written out. */
+        std::string m_checkpoint_name = "";
+
         /** remake distribution map on load balance, @see amrex::AmrCore::RemakeLevel */
         bool m_remake = true;
 
@@ -180,6 +184,7 @@ namespace ablastr::fields
          * @param ncomp the number of components of the field (all with the same staggering)
          * @param ngrow the number of guard (ghost, halo) cells
          * @param initial_value the optional initial value
+         * @param checkpoint_name name of the MultiFab in a checkpoint file
          * @param remake follow the default domain decomposition of the simulation
          * @param redistribute_on_remake redistribute on @see amrex::AmrCore::RemakeLevel
          * @return pointer to newly allocated MultiFab
@@ -194,6 +199,7 @@ namespace ablastr::fields
             int ncomp,
             amrex::IntVect const & ngrow,
             std::optional<amrex::Real const> initial_value = std::nullopt,
+            std::string const& checkpoint_name = "",
             bool remake = true,
             bool redistribute_on_remake = true
         )
@@ -206,6 +212,7 @@ namespace ablastr::fields
                 ncomp,
                 ngrow,
                 initial_value,
+                checkpoint_name,
                 remake,
                 redistribute_on_remake
             );
@@ -224,6 +231,7 @@ namespace ablastr::fields
          * @param ncomp the number of components of the field (all with the same staggering)
          * @param ngrow the number of guard (ghost, halo) cells
          * @param initial_value the optional initial value
+         * @param checkpoint_name name of the MultiFab in a checkpoint file
          * @param remake follow the default domain decomposition of the simulation
          * @param redistribute_on_remake redistribute on @see amrex::AmrCore::RemakeLevel
          * @return pointer to newly allocated MultiFab
@@ -239,6 +247,7 @@ namespace ablastr::fields
             int ncomp,
             amrex::IntVect const & ngrow,
             std::optional<amrex::Real const> initial_value = std::nullopt,
+            std::string const& checkpoint_name = "",
             bool remake = true,
             bool redistribute_on_remake = true
         )
@@ -252,6 +261,7 @@ namespace ablastr::fields
                 ncomp,
                 ngrow,
                 initial_value,
+                checkpoint_name,
                 remake,
                 redistribute_on_remake
             );
@@ -635,6 +645,28 @@ namespace ablastr::fields
             amrex::DistributionMapping const & new_dm
         );
 
+        /** Write data for MultiFabs to checkpoint file
+         *
+         * @param checkpoint_file_name checkpoint file name
+         * @param default_level_prefix prefix added to checkpoint names for the level
+         */
+        void
+        write_to_checkpoint(
+            std::string const& checkpoint_file_name,
+            std::string const& default_level_prefix
+        );
+
+        /** Read data for MultiFabs from checkpoint file
+         *
+         * @param checkpoint_file_name checkpoint file name
+         * @param default_level_prefix prefix added to checkpoint names for the level
+         */
+        void
+        read_from_checkpoint(
+            std::string const& checkpoint_file_name,
+            std::string const& default_level_prefix
+        );
+
         /** Create the register name of scalar field and MR level
          *
          * @param name the name of the field
@@ -680,6 +712,7 @@ namespace ablastr::fields
             int ncomp,
             amrex::IntVect const & ngrow,
             std::optional<amrex::Real const> initial_value = std::nullopt,
+            std::string const& checkpoint_name = "",
             bool remake = true,
             bool redistribute_on_remake = true
         );
@@ -693,6 +726,7 @@ namespace ablastr::fields
             int ncomp,
             amrex::IntVect const & ngrow,
             std::optional<amrex::Real const> initial_value = std::nullopt,
+            std::string const& checkpoint_name = "",
             bool remake = true,
             bool redistribute_on_remake = true
         );

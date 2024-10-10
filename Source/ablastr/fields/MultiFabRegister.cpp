@@ -8,6 +8,8 @@
 #include "MultiFabRegister.H"
 
 #include <AMReX_MakeType.H>
+#include <AMReX_PlotFileUtil.H>
+#include <AMReX_VisMF.H>
 
 #include <array>
 #include <memory>
@@ -29,6 +31,7 @@ namespace ablastr::fields
         int ncomp,
         amrex::IntVect const & ngrow,
         std::optional<amrex::Real const> initial_value,
+        std::string const& checkpoint_name,
         bool remake,
         bool redistribute_on_remake
     )
@@ -49,6 +52,7 @@ namespace ablastr::fields
                 {ba, dm, ncomp, ngrow, tag},
                 std::nullopt,  // scalar: no direction
                 level,
+                checkpoint_name,
                 remake,
                 redistribute_on_remake,
                 ""   // we own the memory
@@ -79,6 +83,7 @@ namespace ablastr::fields
         int ncomp,
         amrex::IntVect const & ngrow,
         std::optional<amrex::Real const> initial_value,
+        std::string const& checkpoint_name,
         bool remake,
         bool redistribute_on_remake
     )
@@ -103,6 +108,7 @@ namespace ablastr::fields
                 {ba, dm, ncomp, ngrow, tag},
                 dir,
                 level,
+                checkpoint_name,
                 remake,
                 redistribute_on_remake,
                 ""   // we own the memory
@@ -161,6 +167,7 @@ namespace ablastr::fields
                 {mf_alias, amrex::make_alias, 0, mf_alias.nComp()},
                 std::nullopt,  // scalar: no direction
                 level,
+                "",
                 alias.m_remake,
                 alias.m_redistribute_on_remake,
                 internal_alias_name
@@ -221,6 +228,7 @@ namespace ablastr::fields
                 {mf_alias, amrex::make_alias, 0, mf_alias.nComp()},
                 dir,
                 level,
+                "",
                 alias.m_remake,
                 alias.m_redistribute_on_remake,
                 internal_alias_name
@@ -274,25 +282,52 @@ namespace ablastr::fields
                 mf_owner.m_mf = std::move(new_mf);
             }
         }
+    }
 
-        // Aliases
+    void
+    MultiFabRegister::write_to_checkpoint (
+        std::string const& checkpoint_file_name,
+        std::string const& default_level_prefix
+    )
+    {
         for (auto & element : m_mf_register )
         {
             MultiFabOwner & mf_owner = element.second;
 
-            // keep distribution map as it is?
-            if (!mf_owner.m_remake) {
-                continue;
+            // Only write MultiFabs with a defined checkpoint name
+            if (!mf_owner.m_checkpoint_name.empty()) {
+
+                amrex::VisMF::Write(mf_owner.m_mf,
+                    amrex::MultiFabFileFullPrefix(mf_owner.m_level,
+                        checkpoint_file_name,
+                        default_level_prefix,
+                        mf_owner.m_checkpoint_name));
+
             }
+        }
+    }
 
-            if (mf_owner.m_level == level && mf_owner.is_alias()) {
-                const amrex::MultiFab & mf = m_mf_register[mf_owner.m_owner].m_mf;
-                amrex::MultiFab new_mf(mf, amrex::make_alias, 0, mf.nComp());
+    void
+    MultiFabRegister::read_from_checkpoint (
+        std::string const& checkpoint_file_name,
+        std::string const& default_level_prefix
+    )
+    {
+        for (auto & element : m_mf_register )
+        {
+            MultiFabOwner & mf_owner = element.second;
 
-                // no copy via Redistribute: the owner was already redistributed
+            // Only read MultiFabs with a defined checkpoint name
+            if (!mf_owner.m_checkpoint_name.empty()) {
 
-                // replace old MultiFab with new one, deallocate old one
-                mf_owner.m_mf = std::move(new_mf);
+                mf_owner.m_mf.setVal(0.);
+
+                amrex::VisMF::Read(mf_owner.m_mf,
+                    amrex::MultiFabFileFullPrefix(mf_owner.m_level,
+                        checkpoint_file_name,
+                        default_level_prefix,
+                        mf_owner.m_checkpoint_name));
+
             }
         }
     }
