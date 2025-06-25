@@ -683,7 +683,7 @@ PhysicalParticleContainer::AddGaussianBeam (PlasmaInjector const& plasma_injecto
     const amrex::Vector<ParticleReal> wp(particle_w.data(), particle_w.data() + np);
     attr.push_back(wp);
 
-    const amrex::Vector<amrex::Vector<int>> attr_int;
+    const amrex::Vector<amrex::Vector<int>> attr_int = {};
 
     AddNParticles(0, np, xp,  yp,  zp, uxp, uyp, uzp,
                   1, attr, 0, attr_int, 1);
@@ -814,7 +814,7 @@ PhysicalParticleContainer::AddPlasmaFromFile(PlasmaInjector & plasma_injector,
     const amrex::Vector<ParticleReal> wp(particle_w.data(), particle_w.data() + np);
     attr.push_back(wp);
 
-    const amrex::Vector<amrex::Vector<int>> attr_int;
+    const amrex::Vector<amrex::Vector<int>> attr_int = {};
 
     AddNParticles(0, np, xp,  yp,  zp, uxp, uyp, uzp,
                   1, attr, 0, attr_int, 1);
@@ -894,7 +894,7 @@ PhysicalParticleContainer::AddParticles (int lev)
             const amrex::Vector<ParticleReal> uyp = {plasma_injector->single_particle_u[1]};
             const amrex::Vector<ParticleReal> uzp = {plasma_injector->single_particle_u[2]};
             const amrex::Vector<amrex::Vector<ParticleReal>> attr = {{plasma_injector->single_particle_weight}};
-            const amrex::Vector<amrex::Vector<int>> attr_int;
+            const amrex::Vector<amrex::Vector<int>> attr_int = {};
             AddNParticles(lev, 1, xp, yp, zp, uxp, uyp, uzp,
                           1, attr, 0, attr_int, 0);
             return;
@@ -913,7 +913,7 @@ PhysicalParticleContainer::AddParticles (int lev)
             }
             amrex::Vector<amrex::Vector<ParticleReal>> attr;
             attr.push_back(plasma_injector->multiple_particles_weight);
-            const amrex::Vector<amrex::Vector<int>> attr_int;
+            const amrex::Vector<amrex::Vector<int>> attr_int = {};
             AddNParticles(lev, static_cast<int>(plasma_injector->multiple_particles_pos_x.size()),
                           plasma_injector->multiple_particles_pos_x,
                           plasma_injector->multiple_particles_pos_y,
@@ -2467,7 +2467,7 @@ PhysicalParticleContainer::SplitParticles (int lev)
 
     amrex::Vector<amrex::Vector<ParticleReal>> attr;
     attr.push_back(wp);
-    const amrex::Vector<amrex::Vector<int>> attr_int;
+    const amrex::Vector<amrex::Vector<int>> attr_int = {};
     pctmp_split.AddNParticles(lev,
                               np_split_to_add,
                               xp,
