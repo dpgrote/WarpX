@@ -1,4 +1,4 @@
-# Copyright 2017-2022 The WarpX Community
+# Copyright 2017-2025 The WarpX Community
 #
 # This file is part of WarpX. It defines the wrapper functions that directly
 # call the underlying compiled routines through pybind11.
@@ -15,8 +15,6 @@
 import atexit
 import os
 import sys
-
-from .Geometry import geometry
 
 
 class LibWarpX:
@@ -73,6 +71,8 @@ class LibWarpX:
 
         # --- Use geometry to determine whether to import the 1D, 2D, 3D or RZ version.
         # --- The geometry must be setup before the lib warpx shared object can be loaded.
+        from .ParameterGroups import geometry
+
         try:
             _prob_lo = geometry.prob_lo
             _dims = str(geometry.dims)

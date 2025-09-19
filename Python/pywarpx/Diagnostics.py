@@ -1,25 +1,27 @@
-# Copyright 2017-2020 David Grote
+# Copyright 2017-2025 David Grote
 #
 # This file is part of WarpX.
 #
 # License: BSD-3-Clause-LBNL
 
-from .Bucket import Bucket
+from .ParameterGroup import ParameterGroup
 from .Particles import valid_species
+from .WarpX import warpx
 
-diagnostics = Bucket("diagnostics", _diagnostics_dict={})
-reduced_diagnostics = Bucket("warpx", _diagnostics_dict={})
+diagnostics = warpx.get_parametergroup("diagnostics", diags_names=[])
+reduced_diagnostics = warpx.get_parametergroup("warpx", diags_names=[])
 
 
 def new_diagnostic(name):
-    diag = Diagnostic(name, _species_dict={})
-    diagnostics._diagnostics_dict[name] = diag
+    diag = warpx.get_parametergroup(name, Diagnostic)
+    if name not in diagnostics.diags_names:
+        diagnostics.diags_names.append(name)
     return diag
 
 
-class Diagnostic(Bucket):
+class Diagnostic(ParameterGroup):
     """
-    This is the same as a Bucket, but checks that any attributes are always given the same value.
+    This is the same as a ParameterGroup, but checks that any attributes are always given the same value.
     """
 
     def add_new_attr_with_check(self, name, value):
@@ -34,18 +36,8 @@ class Diagnostic(Bucket):
                 )
             self.argvattrs[name] = value
 
-    def __getattr__(self, name):
-        try:
-            return Bucket.__getattr__(self, name)
-        except AttributeError:
-            # Create a new attibute if the name is a valid species name
-            if not valid_species(name):
-                raise AttributeError(
-                    "Only valid species names can be added as new attributes"
-                )
-            new = Bucket(f"{self.instancename}.{name}")
-            self.argvattrs[name] = new
-            return new
+    def valid_subgroup_name(self, name):
+        return valid_species(name)
 
     def __setattr__(self, name, value):
         self.add_new_attr_with_check(name, value)

@@ -8,10 +8,6 @@
 # License: BSD-3-Clause-LBNL
 
 from ._libwarpx import libwarpx
-from .Bucket import Bucket
-
-hybridpicmodel = Bucket("hybrid_pic_model")
-external_vector_potential = Bucket("external_vector_potential")
 
 
 class HybridPICModel(object):

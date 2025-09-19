@@ -39,8 +39,6 @@ warpx.cfl = 0.7
 vel_z = 0.5 * clight
 
 # particles
-particles.species_names = ("electrons",)
-
 electrons = Particles.new_species("electrons")
 electrons.charge = -q_e
 electrons.mass = m_e

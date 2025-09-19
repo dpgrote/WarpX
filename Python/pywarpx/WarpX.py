@@ -1,4 +1,4 @@
-# Copyright 2016-2022 Andrew Myers, David Grote, Maxence Thevenet
+# Copyright 2016-2025 Andrew Myers, David Grote, Maxence Thevenet
 # Remi Lehe, Lorenzo Giacomel
 #
 # This file is part of WarpX.
@@ -9,24 +9,10 @@ import re
 import sys
 
 from ._libwarpx import libwarpx
-from .Algo import algo
-from .Amr import amr
-from .Amrex import amrex
-from .Boundary import boundary
-from .Bucket import Bucket
-from .Collisions import collisions, collisions_list
-from .Constants import my_constants
-from .Diagnostics import diagnostics, reduced_diagnostics
-from .EB2 import eb2
-from .Geometry import geometry
-from .HybridPICModel import external_vector_potential, hybridpicmodel
-from .Interpolation import interpolation
-from .Lasers import lasers, lasers_list
-from .Particles import particles, particles_list
-from .PSATD import psatd
+from .ParameterGroup import ParameterGroup
 
 
-class WarpX(Bucket):
+class WarpX(ParameterGroup):
     """
     A Python wrapper for the WarpX C++ class
     """
@@ -38,58 +24,20 @@ class WarpX(Bucket):
             if v is not None:
                 argv.append(f"{k} = {v}")
 
-        argv += warpx.attrlist()
-        argv += my_constants.attrlist()
-        argv += amr.attrlist()
-        argv += amrex.attrlist()
-        argv += geometry.attrlist()
-        argv += hybridpicmodel.attrlist()
-        argv += external_vector_potential.attrlist()
-        argv += boundary.attrlist()
-        argv += algo.attrlist()
-        argv += interpolation.attrlist()
-        argv += psatd.attrlist()
-        argv += eb2.attrlist()
+        argv += self.attrlist()
 
-        argv += particles.attrlist()
-        for particle in particles_list:
-            argv += particle.attrlist()
-
-        argv += collisions.attrlist()
-        for collision in collisions_list:
-            argv += collision.attrlist()
-
-        argv += lasers.attrlist()
-        for laser in lasers_list:
-            argv += laser.attrlist()
-
-        diagnostics.diags_names = diagnostics._diagnostics_dict.keys()
-        argv += diagnostics.attrlist()
-        for diagnostic in diagnostics._diagnostics_dict.values():
-            diagnostic.species = diagnostic._species_dict.keys()
-            argv += diagnostic.attrlist()
-            for species_diagnostic in diagnostic._species_dict.values():
-                argv += species_diagnostic.attrlist()
-
-        reduced_diagnostics.reduced_diags_names = (
-            reduced_diagnostics._diagnostics_dict.keys()
-        )
-        argv += reduced_diagnostics.attrlist()
-        for diagnostic in reduced_diagnostics._diagnostics_dict.values():
-            argv += diagnostic.attrlist()
-
-        for bucket in self._bucket_dict.values():
-            argv += bucket.attrlist()
+        for parametergroup in self._parametergroup_dict.values():
+            argv += parametergroup.attrlist()
 
         return argv
 
-    def get_bucket(self, bucket_name):
+    def get_parametergroup(self, parametergroup_name, group_class=ParameterGroup, **kw):
         try:
-            return self._bucket_dict[bucket_name]
+            return self._parametergroup_dict[parametergroup_name]
         except KeyError:
-            bucket = Bucket(bucket_name)
-            self._bucket_dict[bucket_name] = bucket
-            return bucket
+            parametergroup = group_class(parametergroup_name, **kw)
+            self._parametergroup_dict[parametergroup_name] = parametergroup
+            return parametergroup
 
     def init(self, mpi_comm=None, **kw):
         # note: argv[0] needs to be an absolute path so it works with AMReX backtraces
@@ -130,4 +78,4 @@ class WarpX(Bucket):
                 ff.write(f"{arg}\n")
 
 
-warpx = WarpX("warpx", _bucket_dict={})
+warpx = WarpX("warpx", _parametergroup_dict={})

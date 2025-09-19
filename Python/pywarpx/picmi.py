@@ -1,4 +1,4 @@
-# Copyright 2018-2022 Andrew Myers, David Grote, Ligia Diana Amorim
+# Copyright 2018-2025 Andrew Myers, David Grote, Ligia Diana Amorim
 # Maxence Thevenet, Remi Lehe, Revathi Jambunathan, Lorenzo Giacomel
 #
 #
@@ -18,6 +18,9 @@ import periodictable
 import picmistandard
 import pywarpx
 import pywarpx.callbacks
+
+from .Diagnostics import new_diagnostic
+from .Particles import new_species
 
 codename = "warpx"
 picmistandard.register_codename(codename)
@@ -340,48 +343,56 @@ class Species(picmistandard.PICMI_Species):
         if self.name is None:
             self.name = "species{}".format(self.species_number)
 
-        pywarpx.particles.species_names.append(self.name)
-
         if initialize_self_fields is None:
             initialize_self_fields = False
 
-        self.species = pywarpx.Bucket.Bucket(
-            self.name,
-            mass=self.mass,
-            charge=self.charge,
-            injection_style=None,
-            initialize_self_fields=int(initialize_self_fields),
-            boost_adjust_transverse_positions=self.boost_adjust_transverse_positions,
-            self_fields_required_precision=self.self_fields_required_precision,
-            self_fields_absolute_tolerance=self.self_fields_absolute_tolerance,
-            self_fields_max_iters=self.self_fields_max_iters,
-            self_fields_verbosity=self.self_fields_verbosity,
-            save_particles_at_xlo=self.save_particles_at_xlo,
-            save_particles_at_xhi=self.save_particles_at_xhi,
-            save_particles_at_ylo=self.save_particles_at_ylo,
-            save_particles_at_yhi=self.save_particles_at_yhi,
-            save_particles_at_zlo=self.save_particles_at_zlo,
-            save_particles_at_zhi=self.save_particles_at_zhi,
-            save_particles_at_eb=self.save_particles_at_eb,
-            save_previous_position=self.save_previous_position,
-            do_not_deposit=self.do_not_deposit,
-            do_not_push=self.do_not_push,
-            do_not_gather=self.do_not_gather,
-            radial_numpercell_power=self.radial_numpercell_power,
-            random_theta=self.random_theta,
-            do_resampling=self.do_resampling,
-            resampling_algorithm=self.resampling_algorithm,
-            resampling_min_ppc=self.resampling_min_ppc,
-            resampling_trigger_intervals=self.resampling_trigger_intervals,
-            resampling_trigger_max_avg_ppc=self.resampling_triggering_max_avg_ppc,
-            resampling_algorithm_target_weight=self.resampling_algorithm_target_weight,
-            resampling_algorithm_velocity_grid_type=self.resampling_algorithm_velocity_grid_type,
-            resampling_algorithm_delta_ur=self.resampling_algorithm_delta_ur,
-            resampling_algorithm_n_theta=self.resampling_algorithm_n_theta,
-            resampling_algorithm_n_phi=self.resampling_algorithm_n_phi,
-            resampling_algorithm_delta_u=self.resampling_algorithm_delta_u,
-            do_temperature_deposition=self.do_temperature_deposition,
+        self.species = new_species(self.name)
+        self.species.mass = self.mass
+        self.species.charge = self.charge
+        self.species.injection_style = None
+        self.species.initialize_self_fields = int(initialize_self_fields)
+        self.species.boost_adjust_transverse_positions = (
+            self.boost_adjust_transverse_positions
         )
+        self.species.self_fields_required_precision = (
+            self.self_fields_required_precision
+        )
+        self.species.self_fields_absolute_tolerance = (
+            self.self_fields_absolute_tolerance
+        )
+        self.species.self_fields_max_iters = self.self_fields_max_iters
+        self.species.self_fields_verbosity = self.self_fields_verbosity
+        self.species.save_particles_at_xlo = self.save_particles_at_xlo
+        self.species.save_particles_at_xhi = self.save_particles_at_xhi
+        self.species.save_particles_at_ylo = self.save_particles_at_ylo
+        self.species.save_particles_at_yhi = self.save_particles_at_yhi
+        self.species.save_particles_at_zlo = self.save_particles_at_zlo
+        self.species.save_particles_at_zhi = self.save_particles_at_zhi
+        self.species.save_particles_at_eb = self.save_particles_at_eb
+        self.species.save_previous_position = self.save_previous_position
+        self.species.do_not_deposit = self.do_not_deposit
+        self.species.do_not_push = self.do_not_push
+        self.species.do_not_gather = self.do_not_gather
+        self.species.radial_numpercell_power = self.radial_numpercell_power
+        self.species.random_theta = self.random_theta
+        self.species.do_resampling = self.do_resampling
+        self.species.resampling_algorithm = self.resampling_algorithm
+        self.species.resampling_min_ppc = self.resampling_min_ppc
+        self.species.resampling_trigger_intervals = self.resampling_trigger_intervals
+        self.species.resampling_trigger_max_avg_ppc = (
+            self.resampling_triggering_max_avg_ppc
+        )
+        self.species.resampling_algorithm_target_weight = (
+            self.resampling_algorithm_target_weight
+        )
+        self.species.resampling_algorithm_velocity_grid_type = (
+            self.resampling_algorithm_velocity_grid_type
+        )
+        self.species.resampling_algorithm_delta_ur = self.resampling_algorithm_delta_ur
+        self.species.resampling_algorithm_n_theta = self.resampling_algorithm_n_theta
+        self.species.resampling_algorithm_n_phi = self.resampling_algorithm_n_phi
+        self.species.resampling_algorithm_delta_u = self.resampling_algorithm_delta_u
+        self.species.do_temperature_deposition = self.do_temperature_deposition
 
         # add reflection models
         self.species.add_new_attr("reflection_model_xlo(E)", self.reflection_model_xlo)
@@ -405,8 +416,6 @@ class Species(picmistandard.PICMI_Species):
                 self.species.add_new_attr(
                     "attribute." + attr + "(x,y,z,ux,uy,uz,t)", function
                 )
-
-        pywarpx.Particles.particles_list.append(self.species)
 
         if self.initial_distribution is not None:
             distributions_is_list = np.iterable(self.initial_distribution)
@@ -1058,7 +1067,7 @@ class CylindricalGrid(picmistandard.PICMI_CylindricalGrid):
 
         if self.thermal_boundary_u_th is not None:
             for name, val in self.thermal_boundary_u_th.items():
-                pywarpx.boundary.__setattr__(f"{name}.u_th", val)
+                pywarpx.boundary.add_new_attr(f"{name}.u_th", val)
 
         if self.moving_window_velocity is not None and np.any(
             np.not_equal(self.moving_window_velocity, 0.0)
@@ -1178,7 +1187,7 @@ class Cartesian1DGrid(picmistandard.PICMI_Cartesian1DGrid):
 
         if self.thermal_boundary_u_th is not None:
             for name, val in self.thermal_boundary_u_th.items():
-                pywarpx.boundary.__setattr__(f"{name}.u_th", val)
+                pywarpx.boundary.add_new_attr(f"{name}.u_th", val)
 
         if self.moving_window_velocity is not None and np.any(
             np.not_equal(self.moving_window_velocity, 0.0)
@@ -1309,7 +1318,7 @@ class Cartesian2DGrid(picmistandard.PICMI_Cartesian2DGrid):
 
         if self.thermal_boundary_u_th is not None:
             for name, val in self.thermal_boundary_u_th.items():
-                pywarpx.boundary.__setattr__(f"{name}.u_th", val)
+                pywarpx.boundary.add_new_attr(f"{name}.u_th", val)
 
         if self.moving_window_velocity is not None and np.any(
             np.not_equal(self.moving_window_velocity, 0.0)
@@ -1461,7 +1470,7 @@ class Cartesian3DGrid(picmistandard.PICMI_Cartesian3DGrid):
 
         if self.thermal_boundary_u_th is not None:
             for name, val in self.thermal_boundary_u_th.items():
-                pywarpx.boundary.__setattr__(f"{name}.u_th", val)
+                pywarpx.boundary.add_new_attr(f"{name}.u_th", val)
 
         if self.moving_window_velocity is not None and np.any(
             np.not_equal(self.moving_window_velocity, 0.0)
@@ -1656,7 +1665,7 @@ class ThetaImplicitEMEvolveScheme(picmistandard.base._ClassWithInit):
 
     def solver_scheme_initialize_inputs(self):
         pywarpx.algo.evolve_scheme = "theta_implicit_em"
-        implicit_evolve = pywarpx.warpx.get_bucket("implicit_evolve")
+        implicit_evolve = pywarpx.warpx.get_parametergroup("implicit_evolve")
         implicit_evolve.theta = self.theta
 
         self.nonlinear_solver.nonlinear_solver_initialize_inputs()
@@ -1718,10 +1727,10 @@ class PicardNonlinearSolver(picmistandard.base._ClassWithInit):
         self.require_convergence = require_convergence
 
     def nonlinear_solver_initialize_inputs(self):
-        implicit_evolve = pywarpx.warpx.get_bucket("implicit_evolve")
+        implicit_evolve = pywarpx.warpx.get_parametergroup("implicit_evolve")
         implicit_evolve.nonlinear_solver = "picard"
 
-        picard = pywarpx.warpx.get_bucket("picard")
+        picard = pywarpx.warpx.get_parametergroup("picard")
         picard.verbose = self.verbose
         picard.absolute_tolerance = self.absolute_tolerance
         picard.relative_tolerance = self.relative_tolerance
@@ -1782,12 +1791,12 @@ class NewtonNonlinearSolver(picmistandard.base._ClassWithInit):
         self.particle_tolerance = particle_tolerance
 
     def nonlinear_solver_initialize_inputs(self):
-        implicit_evolve = pywarpx.warpx.get_bucket("implicit_evolve")
+        implicit_evolve = pywarpx.warpx.get_parametergroup("implicit_evolve")
         implicit_evolve.nonlinear_solver = "newton"
         implicit_evolve.max_particle_iterations = self.max_particle_iterations
         implicit_evolve.particle_tolerance = self.particle_tolerance
 
-        newton = pywarpx.warpx.get_bucket("newton")
+        newton = pywarpx.warpx.get_parametergroup("newton")
         newton.verbose = self.verbose
         newton.absolute_tolerance = self.absolute_tolerance
         newton.relative_tolerance = self.relative_tolerance
@@ -1834,7 +1843,7 @@ class GMRESLinearSolver(picmistandard.base._ClassWithInit):
         self.max_iterations = max_iterations
 
     def linear_solver_initialize_inputs(self):
-        gmres = pywarpx.warpx.get_bucket("gmres")
+        gmres = pywarpx.warpx.get_parametergroup("gmres")
         gmres.verbose_int = self.verbose_int
         gmres.restart_length = self.restart_length
         gmres.absolute_tolerance = self.absolute_tolerance
@@ -1969,13 +1978,13 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         pywarpx.hybridpicmodel.n0_ref = self.n0
         pywarpx.hybridpicmodel.gamma = self.gamma
         pywarpx.hybridpicmodel.n_floor = self.n_floor
-        pywarpx.hybridpicmodel.__setattr__(
+        pywarpx.hybridpicmodel.add_new_attr(
             "plasma_resistivity(rho,J)",
             pywarpx.my_constants.mangle_expression(
                 self.plasma_resistivity, self.mangle_dict
             ),
         )
-        pywarpx.hybridpicmodel.__setattr__(
+        pywarpx.hybridpicmodel.add_new_attr(
             "plasma_hyper_resistivity(rho,B)",
             pywarpx.my_constants.mangle_expression(
                 self.plasma_hyper_resistivity, self.mangle_dict
@@ -1983,19 +1992,19 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         )
         pywarpx.hybridpicmodel.substeps = self.substeps
         pywarpx.hybridpicmodel.holmstrom_vacuum_region = self.holmstrom_vacuum_region
-        pywarpx.hybridpicmodel.__setattr__(
+        pywarpx.hybridpicmodel.add_new_attr(
             "Jx_external_grid_function(x,y,z,t)",
             pywarpx.my_constants.mangle_expression(
                 self.Jx_external_function, self.mangle_dict
             ),
         )
-        pywarpx.hybridpicmodel.__setattr__(
+        pywarpx.hybridpicmodel.add_new_attr(
             "Jy_external_grid_function(x,y,z,t)",
             pywarpx.my_constants.mangle_expression(
                 self.Jy_external_function, self.mangle_dict
             ),
         )
-        pywarpx.hybridpicmodel.__setattr__(
+        pywarpx.hybridpicmodel.add_new_attr(
             "Jz_external_grid_function(x,y,z,t)",
             pywarpx.my_constants.mangle_expression(
                 self.Jz_external_function, self.mangle_dict
@@ -2003,7 +2012,7 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
         )
         if self.A_external is not None:
             pywarpx.hybridpicmodel.add_external_fields = True
-            pywarpx.external_vector_potential.__setattr__(
+            pywarpx.external_vector_potential.add_new_attr(
                 "fields",
                 pywarpx.my_constants.mangle_expression(
                     list(self.A_external.keys()), self.mangle_dict
@@ -2014,32 +2023,32 @@ class HybridPICSolver(picmistandard.base._ClassWithInit):
             )
             for field_name, field_dict in self.A_external.items():
                 if field_dict.get("read_from_file", False):
-                    pywarpx.external_vector_potential.__setattr__(
+                    pywarpx.external_vector_potential.add_new_attr(
                         f"{field_name}.read_from_file", field_dict["read_from_file"]
                     )
-                    pywarpx.external_vector_potential.__setattr__(
+                    pywarpx.external_vector_potential.add_new_attr(
                         f"{field_name}.path", field_dict["path"]
                     )
                 else:
-                    pywarpx.external_vector_potential.__setattr__(
+                    pywarpx.external_vector_potential.add_new_attr(
                         f"{field_name}.Ax_external_grid_function(x,y,z)",
                         pywarpx.my_constants.mangle_expression(
                             field_dict["Ax_external_function"], self.mangle_dict
                         ),
                     )
-                    pywarpx.external_vector_potential.__setattr__(
+                    pywarpx.external_vector_potential.add_new_attr(
                         f"{field_name}.Ay_external_grid_function(x,y,z)",
                         pywarpx.my_constants.mangle_expression(
                             field_dict["Ay_external_function"], self.mangle_dict
                         ),
                     )
-                    pywarpx.external_vector_potential.__setattr__(
+                    pywarpx.external_vector_potential.add_new_attr(
                         f"{field_name}.Az_external_grid_function(x,y,z)",
                         pywarpx.my_constants.mangle_expression(
                             field_dict["Az_external_function"], self.mangle_dict
                         ),
                     )
-                pywarpx.external_vector_potential.__setattr__(
+                pywarpx.external_vector_potential.add_new_attr(
                     f"{field_name}.A_time_external_function(t)",
                     pywarpx.my_constants.mangle_expression(
                         field_dict["A_time_external_function"], self.mangle_dict
@@ -2139,7 +2148,7 @@ class GaussianLaser(picmistandard.PICMI_GaussianLaser):
         if self.name is None:
             self.name = "laser{}".format(self.laser_number)
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = pywarpx.Lasers.new_laser(self.name)
 
         self.laser.profile = "Gaussian"
         self.laser.wavelength = (
@@ -2171,7 +2180,7 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         if self.name is None:
             self.name = "laser{}".format(self.laser_number)
 
-        self.laser = pywarpx.Lasers.newlaser(self.name)
+        self.laser = pywarpx.Lasers.new_laser(self.name)
 
         self.laser.profile = "parse_field_function"
         self.laser.wavelength = (
@@ -2191,7 +2200,7 @@ class AnalyticLaser(picmistandard.PICMI_AnalyticLaser):
         expression = pywarpx.my_constants.mangle_expression(
             self.field_expression, self.mangle_dict
         )
-        self.laser.__setattr__("field_function(X,Y,t)", expression)
+        self.laser.add_new_attr("field_function(X,Y,t)", expression)
 
 
 class LaserAntenna(picmistandard.PICMI_LaserAntenna):
@@ -2360,7 +2369,7 @@ class AnalyticInitialField(picmistandard.PICMI_AnalyticAppliedField):
                 expression = pywarpx.my_constants.mangle_expression(
                     expression, self.mangle_dict
                 )
-                pywarpx.warpx.__setattr__(
+                pywarpx.warpx.add_new_attr(
                     f"E{sdir}_external_grid_function(x,y,z)", expression
                 )
 
@@ -2377,7 +2386,7 @@ class AnalyticInitialField(picmistandard.PICMI_AnalyticAppliedField):
                 expression = pywarpx.my_constants.mangle_expression(
                     expression, self.mangle_dict
                 )
-                pywarpx.warpx.__setattr__(
+                pywarpx.warpx.add_new_attr(
                     f"B{sdir}_external_grid_function(x,y,z)", expression
                 )
             pywarpx.warpx.do_initial_div_cleaning = self.do_initial_div_cleaning
@@ -2460,7 +2469,7 @@ class AnalyticAppliedField(picmistandard.PICMI_AnalyticAppliedField):
                 expression = pywarpx.my_constants.mangle_expression(
                     expression, self.mangle_dict
                 )
-                pywarpx.particles.__setattr__(
+                pywarpx.particles.add_new_attr(
                     f"E{sdir}_external_particle_function(x,y,z,t)", expression
                 )
 
@@ -2479,7 +2488,7 @@ class AnalyticAppliedField(picmistandard.PICMI_AnalyticAppliedField):
                 expression = pywarpx.my_constants.mangle_expression(
                     expression, self.mangle_dict
                 )
-                pywarpx.particles.__setattr__(
+                pywarpx.particles.add_new_attr(
                     f"B{sdir}_external_particle_function(x,y,z,t)", expression
                 )
 
@@ -2551,7 +2560,7 @@ class CoulombCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def collision_initialize_inputs(self):
-        collision = pywarpx.Collisions.newcollision(self.name)
+        collision = pywarpx.Collisions.new_collision(self.name)
         collision.type = "pairwisecoulomb"
         collision.species = [species.name for species in self.species]
         collision.CoulombLog = self.CoulombLog
@@ -2617,17 +2626,17 @@ class MCCCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def collision_initialize_inputs(self):
-        collision = pywarpx.Collisions.newcollision(self.name)
+        collision = pywarpx.Collisions.new_collision(self.name)
         collision.type = "background_mcc"
         collision.species = self.species.name
         if isinstance(self.background_density, str):
-            collision.__setattr__(
+            collision.add_new_attr(
                 "background_density(x,y,z,t)", self.background_density
             )
         else:
             collision.background_density = self.background_density
         if isinstance(self.background_temperature, str):
-            collision.__setattr__(
+            collision.add_new_attr(
                 "background_temperature(x,y,z,t)", self.background_temperature
             )
         else:
@@ -2681,7 +2690,7 @@ class DSMCCollisions(picmistandard.base._ClassWithInit):
         self.handle_init(kw)
 
     def collision_initialize_inputs(self):
-        collision = pywarpx.Collisions.newcollision(self.name)
+        collision = pywarpx.Collisions.new_collision(self.name)
         collision.type = "dsmc"
         collision.species = [species.name for species in self.species]
         if self.product_species is not None:
@@ -2810,7 +2819,7 @@ class EmbeddedBoundary(picmistandard.base._ClassWithInit):
             expression = pywarpx.my_constants.mangle_expression(
                 self.potential, self.mangle_dict
             )
-            pywarpx.warpx.__setattr__("eb_potential(x,y,z,t)", expression)
+            pywarpx.warpx.add_new_attr("eb_potential(x,y,z,t)", expression)
 
 
 class PlasmaLens(picmistandard.base._ClassWithInit):
@@ -3197,7 +3206,7 @@ class Simulation(picmistandard.PICMI_Simulation):
 
         pywarpx.warpx.numprocs = self.numprocs
 
-        reduced_diags = pywarpx.warpx.get_bucket("reduced_diags")
+        reduced_diags = pywarpx.warpx.get_parametergroup("reduced_diags")
         reduced_diags.path = self.reduced_diags_path
         reduced_diags.extension = self.reduced_diags_extension
         reduced_diags.intervals = self.reduced_diags_intervals
@@ -3266,9 +3275,7 @@ class Simulation(picmistandard.PICMI_Simulation):
             interaction.interaction_initialize_inputs()
 
         if self.collisions is not None:
-            pywarpx.collisions.collision_names = []
             for collision in self.collisions:
-                pywarpx.collisions.collision_names.append(collision.name)
                 collision.collision_initialize_inputs()
 
         if self.embedded_boundary is not None:
@@ -3339,26 +3346,21 @@ class WarpXDiagnosticBase(object):
     """
 
     def add_diagnostic(self):
-        # reduced diagnostics go in a different bucket than regular diagnostics
+        # reduced diagnostics go in a different ParameterGroup than regular diagnostics
         if isinstance(self, ReducedDiagnostic):
-            bucket = pywarpx.reduced_diagnostics
+            diagnosticgroup = pywarpx.reduced_diagnostics
             name_template = "reduced_diag"
         else:
-            bucket = pywarpx.diagnostics
+            diagnosticgroup = pywarpx.diagnostics
             name_template = "diag"
 
-        name = getattr(self, "name", None)
-        if name is None:
-            diagnostics_number = len(bucket._diagnostics_dict) + 1
+        try:
+            self.name
+        except AttributeError:
+            diagnostics_number = len(diagnosticgroup.diags_names) + 1
             self.name = f"{name_template}{diagnostics_number}"
 
-        try:
-            self.diagnostic = bucket._diagnostics_dict[self.name]
-        except KeyError:
-            self.diagnostic = pywarpx.Diagnostics.Diagnostic(
-                self.name, _species_dict={}
-            )
-            bucket._diagnostics_dict[self.name] = self.diagnostic
+        self.diagnostic = new_diagnostic(self.name)
 
     def set_write_dir(self):
         if self.write_dir is not None or self.file_prefix is not None:
@@ -3578,13 +3580,13 @@ class FieldDiagnostic(picmistandard.PICMI_FieldDiagnostic, WarpXDiagnosticBase):
             if pfd.name in particle_fields_to_plot_names:
                 raise Exception("A particle fields name can not be repeated.")
             particle_fields_to_plot_names.append(pfd.name)
-            self.diagnostic.__setattr__(
+            self.diagnostic.add_new_attr(
                 f"particle_fields.{pfd.name}(x,y,z,ux,uy,uz)", pfd.func
             )
-            self.diagnostic.__setattr__(
+            self.diagnostic.add_new_attr(
                 f"particle_fields.{pfd.name}.do_average", pfd.do_average
             )
-            self.diagnostic.__setattr__(
+            self.diagnostic.add_new_attr(
                 f"particle_fields.{pfd.name}.filter(x,y,z,ux,uy,uz)", pfd.filter
             )
 
@@ -3884,7 +3886,7 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic, WarpXDiagnostic
             self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
 
         for name in species_names:
-            diag = pywarpx.Bucket.Bucket(
+            diag = pywarpx.ParameterGroup.ParameterGroup(
                 self.name + "." + name,
                 variables=variables,
                 random_fraction=random_fraction.get(name, random_fraction_default),
@@ -3893,8 +3895,8 @@ class ParticleDiagnostic(picmistandard.PICMI_ParticleDiagnostic, WarpXDiagnostic
             expression = pywarpx.my_constants.mangle_expression(
                 self.plot_filter_function, self.mangle_dict
             )
-            diag.__setattr__("plot_filter_function(t,x,y,z,ux,uy,uz)", expression)
-            self.diagnostic._species_dict[name] = diag
+            diag.add_new_attr("plot_filter_function(t,x,y,z,ux,uy,uz)", expression)
+            self.diagnostic.add_new_attr(name, diag)
 
 
 # ----------------------------
@@ -4178,8 +4180,10 @@ class LabFrameParticleDiagnostic(
             species_names = [self.species.name]
 
         for name in species_names:
-            diag = pywarpx.Bucket.Bucket(self.name + "." + name, variables=variables)
-            self.diagnostic._species_dict[name] = diag
+            diag = pywarpx.ParameterGroup.ParameterGroup(
+                self.name + "." + name, variables=variables
+            )
+            self.diagnostic.add_new_attr(name, diag)
 
 
 class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
@@ -4417,8 +4421,8 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         histogram_function = kw.pop("histogram_function")
         filter_function = kw.pop("filter_function", None)
 
-        self.__setattr__("histogram_function(t,x,y,z,ux,uy,uz)", histogram_function)
-        self.__setattr__("filter_function(t,x,y,z,ux,uy,uz)", filter_function)
+        self.add_new_attr("histogram_function(t,x,y,z,ux,uy,uz)", histogram_function)
+        self.add_new_attr("filter_function(t,x,y,z,ux,uy,uz)", filter_function)
 
         # Check the reduced function expressions for constants
         for k in list(kw.keys()):
@@ -4440,18 +4444,18 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         self.bin_max_ord = kw.pop("bin_max_ord")
         histogram_function_abs = kw.pop("histogram_function_abs")
         histogram_function_ord = kw.pop("histogram_function_ord")
-        self.__setattr__(
+        self.add_new_attr(
             "histogram_function_abs(t,x,y,z,ux,uy,uz,w)", histogram_function_abs
         )
-        self.__setattr__(
+        self.add_new_attr(
             "histogram_function_ord(t,x,y,z,ux,uy,uz,w)", histogram_function_ord
         )
 
         filter_function = kw.pop("filter_function", None)
         value_function = kw.pop("value_function", None)
 
-        self.__setattr__("filter_function(t,x,y,z,ux,uy,uz,w)", filter_function)
-        self.__setattr__("value_function(t,x,y,z,ux,uy,uz,w)", value_function)
+        self.add_new_attr("filter_function(t,x,y,z,ux,uy,uz,w)", filter_function)
+        self.add_new_attr("value_function(t,x,y,z,ux,uy,uz,w)", value_function)
 
         # Check the function expressions for constants
         for k in list(kw.keys()):
@@ -4473,7 +4477,7 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         self.reduction_type = kw.pop("reduction_type")
         reduced_function = kw.pop("reduced_function")
 
-        self.__setattr__(
+        self.add_new_attr(
             "reduced_function(x,y,z,Ex,Ey,Ez,Bx,By,Bz,jx,jy,jz)", reduced_function
         )
 
@@ -4488,7 +4492,7 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
     def _handle_charge_on_eb(self, **kw):
         weighting_function = kw.pop("weighting_function", None)
 
-        self.__setattr__("weighting_function(x,y,z)", weighting_function)
+        self.add_new_attr("weighting_function(x,y,z)", weighting_function)
 
         # Check the reduced function expression for constants
         for k in list(kw.keys()):
@@ -4510,9 +4514,9 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
                     expression = pywarpx.my_constants.mangle_expression(
                         value, self.mangle_dict
                     )
-                    self.diagnostic.__setattr__(key, expression)
+                    self.diagnostic.add_new_attr(key, expression)
                 else:
-                    self.diagnostic.__setattr__(key, value)
+                    self.diagnostic.add_new_attr(key, value)
 
 
 class ParticleBoundaryScrapingDiagnostic(
@@ -4677,7 +4681,7 @@ class ParticleBoundaryScrapingDiagnostic(
             self.mangle_dict = pywarpx.my_constants.add_keywords(self.user_defined_kw)
 
         for name in species_names:
-            diag = pywarpx.Bucket.Bucket(
+            diag = pywarpx.ParameterGroup.ParameterGroup(
                 self.name + "." + name,
                 variables=variables,
                 random_fraction=random_fraction.get(name, random_fraction_default),
@@ -4686,5 +4690,5 @@ class ParticleBoundaryScrapingDiagnostic(
             expression = pywarpx.my_constants.mangle_expression(
                 self.plot_filter_function, self.mangle_dict
             )
-            diag.__setattr__("plot_filter_function(t,x,y,z,ux,uy,uz)", expression)
-            self.diagnostic._species_dict[name] = diag
+            diag.add_new_attr("plot_filter_function(t,x,y,z,ux,uy,uz)", expression)
+            self.diagnostic.add_new_attr(name, diag)

@@ -1,4 +1,4 @@
-# Copyright 2016-2020 Andrew Myers, David Grote, Maxence Thevenet
+# Copyright 2016-2025 Andrew Myers, David Grote, Maxence Thevenet
 #
 #
 # This file is part of WarpX.
@@ -8,10 +8,10 @@
 import numpy as np
 
 
-class Bucket(object):
+class ParameterGroup(object):
     """
-    The purpose of this class is to be a named bucket for holding attributes.
-    This attributes will be concatenated into a string and passed into argv during initialization.
+    The purpose of this class is to be a named group for holding input parameters.
+    This parameters will be concatenated into a string and passed into argv during initialization.
     """
 
     def __init__(self, instancename, **defaults):
@@ -41,6 +41,9 @@ class Bucket(object):
         else:
             self.argvattrs[name] = value
 
+    def valid_subgroup_name(self, name):
+        return False
+
     def __setattr__(self, name, value):
         self.add_new_attr(name, value)
 
@@ -48,7 +51,17 @@ class Bucket(object):
         try:
             return self.argvattrs[name]
         except KeyError:
-            return object.__getattribute__(self, name)
+            try:
+                return object.__getattribute__(self, name)
+            except AttributeError:
+                # Create a new attibute if the name is a valid subgroup name
+                if not self.valid_subgroup_name(name):
+                    raise AttributeError(
+                        f"The name {name} is not a valid subgroup for group {self.instancename}"
+                    )
+                new = ParameterGroup(f"{self.instancename}.{name}")
+                self.argvattrs[name] = new
+                return new
 
     def check_consistency(self, vname, value, errmsg):
         if vname in self.argvattrs:
@@ -79,7 +92,7 @@ class Bucket(object):
                 rhs = " ".join(map(lambda s: f"{s}", value))
             elif isinstance(value, bool):
                 rhs = 1 if value else 0
-            elif isinstance(value, Bucket):
+            elif isinstance(value, ParameterGroup):
                 subresult = value.attrlist()
                 result.extend(subresult)
                 continue

@@ -1,38 +1,28 @@
-# Copyright 2017-2020 Andrew Myers, David Grote
+# Copyright 2017-2025 Andrew Myers, David Grote
 #
 # This file is part of WarpX.
 #
 # License: BSD-3-Clause-LBNL
 
-from .Bucket import Bucket
+from .ParameterGroup import ParameterGroup
+from .WarpX import warpx
 
-particles = Bucket("particles", species_names=[], rigid_injected_species=[])
-particles_list = []
+particles = warpx.get_parametergroup(
+    "particles", species_names=[], rigid_injected_species=[]
+)
 
 
 def new_species(name):
-    result = Species(name)
-    particles_list.append(result)
+    result = warpx.get_parametergroup(name, Species)
+    if name not in particles.species_names:
+        particles.species_names.append(name)
     return result
 
 
 def valid_species(name):
-    for sp in particles_list:
-        if sp.instancename == name:
-            return True
-    return False
+    return name in particles.species_names
 
 
-class Species(Bucket):
-    def __getattr__(self, name):
-        try:
-            return Bucket.__getattr__(self, name)
-        except AttributeError:
-            # Create a new attibute if the name is a valid injection source name
-            if name not in self.injection_sources:
-                raise AttributeError(
-                    "Only valid injection source names can be added as new attributes"
-                )
-            new = Bucket(f"{self.instancename}.{name}")
-            self.argvattrs[name] = new
-            return new
+class Species(ParameterGroup):
+    def valid_subgroup_name(self, name):
+        return (name in self.injection_sources) or name in ["attribute"]

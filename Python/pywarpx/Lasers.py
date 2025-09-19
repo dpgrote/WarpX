@@ -1,17 +1,16 @@
-# Copyright 2019-2020 David Grote
+# Copyright 2019-2025 David Grote
 #
 # This file is part of WarpX.
 #
 # License: BSD-3-Clause-LBNL
 
-from .Bucket import Bucket
+from .WarpX import warpx
 
-lasers = Bucket("lasers", names=[])
-lasers_list = []
+lasers = warpx.get_parametergroup("lasers", names=[])
 
 
-def newlaser(name):
-    result = Bucket(name)
-    lasers_list.append(result)
-    lasers.names.append(name)
+def new_laser(name):
+    result = warpx.get_parametergroup(name)
+    if name not in lasers.names:
+        lasers.names.append(name)
     return result

@@ -1,4 +1,4 @@
-# Copyright 2018-2019 David Grote
+# Copyright 2018-2025 David Grote
 #
 # This file is part of WarpX.
 #
@@ -6,16 +6,14 @@
 
 import re
 
-from .Bucket import Bucket
+from .ParameterGroup import ParameterGroup
+from .WarpX import warpx
 
 
-class Constants(Bucket):
+class Constants(ParameterGroup):
     """
     The purpose of this class is to be hold user defined constants
     """
-
-    def __init__(self):
-        Bucket.__init__(self, "my_constants")
 
     def __setattr__(self, name, value):
         # Make sure that any constants redefined have a consistent value
@@ -23,7 +21,7 @@ class Constants(Bucket):
             assert self.argvattrs[name] == value, Exception(
                 "Inconsistent values given for user defined constants"
             )
-        Bucket.__setattr__(self, name, value)
+        self.add_new_attr(name, value)
 
     def add_keywords(self, kwdict):
         mangle_dict = {}
@@ -40,7 +38,7 @@ class Constants(Bucket):
             if mangle_number > 0:
                 # The mangle_dict contains only mangled names
                 mangle_dict[k] = k_mangled
-            setattr(self, k_mangled, v)
+            self.add_new_attr(k_mangled, v)
         return mangle_dict
 
     def mangle_expression(self, expression, mangle_dict):
@@ -53,4 +51,4 @@ class Constants(Bucket):
         return expression
 
 
-my_constants = Constants()
+my_constants = warpx.get_parametergroup("my_constants", Constants)

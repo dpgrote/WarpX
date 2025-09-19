@@ -1,4 +1,4 @@
-# Copyright 2016-2024 The WarpX Community
+# Copyright 2016-2025 The WarpX Community
 #
 # This file is part of WarpX.
 #
@@ -24,22 +24,23 @@ if os.name == "nt":
             os.add_dll_directory(p_abs)
 
 from ._libwarpx import libwarpx  # noqa
-from .Algo import algo  # noqa
-from .Amr import amr  # noqa
-from .Amrex import amrex  # noqa
-from .Boundary import boundary  # noqa
-from .Collisions import collisions  # noqa
-from .Constants import my_constants  # noqa
-from .Diagnostics import diagnostics, reduced_diagnostics  # noqa
-from .EB2 import eb2  # noqa
-from .Geometry import geometry  # noqa
-from .HybridPICModel import hybridpicmodel, external_vector_potential  # noqa
-from .Interpolation import interpolation  # noqa
-from .Lasers import lasers  # noqa
+from .ParameterGroups import algo  # noqa
+from .ParameterGroups import amr  # noqa
+from .ParameterGroups import amrex  # noqa
+from .ParameterGroups import boundary  # noqa
+from .ParameterGroups import collisions  # noqa
+from .ParameterGroups import my_constants  # noqa
+from .ParameterGroups import diagnostics, reduced_diagnostics  # noqa
+from .ParameterGroups import eb2  # noqa
+from .ParameterGroups import geometry  # noqa
+from .ParameterGroups import hybridpicmodel, external_vector_potential  # noqa
+from .ParameterGroups import interpolation  # noqa
+from .ParameterGroups import lasers  # noqa
+from .ParameterGroups import particles  # noqa
+from .ParameterGroups import psatd  # noqa
+from .ParameterGroups import warpx  # noqa
 from .LoadThirdParty import load_cupy  # noqa
-from .Particles import new_species, particles  # noqa
-from .PSATD import psatd  # noqa
-from .WarpX import warpx  # noqa
+from .Particles import new_species  # noqa
 
 # This is a circular import and must happen after the import of libwarpx
 from . import picmi  # noqa  # isort:skip

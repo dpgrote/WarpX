@@ -1,16 +1,16 @@
-# Copyright 2021 Modern Electron
+# Copyright 2025 Modern Electron, David Grote
 #
 # This file is part of WarpX.
 #
 # License: BSD-3-Clause-LBNL
 
-from .Bucket import Bucket
+from .WarpX import warpx
 
-collisions = Bucket("collisions")
-collisions_list = []
+collisions = warpx.get_parametergroup("collisions", collision_names=[])
 
 
-def newcollision(name):
-    result = Bucket(name)
-    collisions_list.append(result)
+def new_collision(name):
+    result = warpx.get_parametergroup(name)
+    if name not in collisions.collision_names:
+        collisions.collision_names.append(name)
     return result
