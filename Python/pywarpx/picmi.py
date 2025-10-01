@@ -4421,8 +4421,8 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         histogram_function = kw.pop("histogram_function")
         filter_function = kw.pop("filter_function", None)
 
-        self.add_new_attr("histogram_function(t,x,y,z,ux,uy,uz)", histogram_function)
-        self.add_new_attr("filter_function(t,x,y,z,ux,uy,uz)", filter_function)
+        self.__setattr__("histogram_function(t,x,y,z,ux,uy,uz)", histogram_function)
+        self.__setattr__("filter_function(t,x,y,z,ux,uy,uz)", filter_function)
 
         # Check the reduced function expressions for constants
         for k in list(kw.keys()):
@@ -4444,18 +4444,18 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         self.bin_max_ord = kw.pop("bin_max_ord")
         histogram_function_abs = kw.pop("histogram_function_abs")
         histogram_function_ord = kw.pop("histogram_function_ord")
-        self.add_new_attr(
+        self.__setattr__(
             "histogram_function_abs(t,x,y,z,ux,uy,uz,w)", histogram_function_abs
         )
-        self.add_new_attr(
+        self.__setattr__(
             "histogram_function_ord(t,x,y,z,ux,uy,uz,w)", histogram_function_ord
         )
 
         filter_function = kw.pop("filter_function", None)
         value_function = kw.pop("value_function", None)
 
-        self.add_new_attr("filter_function(t,x,y,z,ux,uy,uz,w)", filter_function)
-        self.add_new_attr("value_function(t,x,y,z,ux,uy,uz,w)", value_function)
+        self.__setattr__("filter_function(t,x,y,z,ux,uy,uz,w)", filter_function)
+        self.__setattr__("value_function(t,x,y,z,ux,uy,uz,w)", value_function)
 
         # Check the function expressions for constants
         for k in list(kw.keys()):
@@ -4477,7 +4477,7 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
         self.reduction_type = kw.pop("reduction_type")
         reduced_function = kw.pop("reduced_function")
 
-        self.add_new_attr(
+        self.__setattr__(
             "reduced_function(x,y,z,Ex,Ey,Ez,Bx,By,Bz,jx,jy,jz)", reduced_function
         )
 
@@ -4492,7 +4492,7 @@ class ReducedDiagnostic(picmistandard.base._ClassWithInit, WarpXDiagnosticBase):
     def _handle_charge_on_eb(self, **kw):
         weighting_function = kw.pop("weighting_function", None)
 
-        self.add_new_attr("weighting_function(x,y,z)", weighting_function)
+        self.__setattr__("weighting_function(x,y,z)", weighting_function)
 
         # Check the reduced function expression for constants
         for k in list(kw.keys()):
