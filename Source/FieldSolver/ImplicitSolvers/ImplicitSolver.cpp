@@ -83,9 +83,14 @@ Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::convertFieldBCToLinOpBC (const
             lbc[i] = LinOpBCType::symmetry;
         } else if (a_fbc[i] == FieldBoundaryType::PECInsulator) {
             ablastr::warn_manager::WMRecordWarning("Implicit solver",
-                "With PECInsulator, in the Curl-Curl preconditioner Neumann boundary will be used since the full boundary is not yet implemented.",
+                "With PECInsulator, in the Curl-Curl preconditioner Neumann boundary will be used for B fields and Dirichlet used for E fields since the full boundary is not yet implemented.",
                 ablastr::warn_manager::WarnPriority::medium);
-            lbc[i] = LinOpBCType::symmetry;
+            PEC_Insulator const & peci = m_WarpX->GetPEC_Insulator();
+            if (peci.IsESet(i, iside)) {
+                lbc[i] = LinOpBCType::Dirichlet;
+            } else {
+                lbc[i] = LinOpBCType::symmetry;
+            }
         } else if (a_fbc[i] == FieldBoundaryType::None) {
             WARPX_ABORT_WITH_MESSAGE("LinOpBCType not set for this FieldBoundaryType");
         } else if (a_fbc[i] == FieldBoundaryType::Open) {

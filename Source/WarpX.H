@@ -937,6 +937,8 @@ public:
     //! This function is called in amrex::AmrCore::InitFromScratch.
     void PostProcessBaseGrids (amrex::BoxArray& ba0) const final;
 
+    PEC_Insulator const & GetPEC_Insulator() const { return *pec_insulator_boundary; }
+
 protected:
 
     /**
