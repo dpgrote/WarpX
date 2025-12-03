@@ -1,6 +1,7 @@
 #include "ImplicitSolver.H"
 #include "Fields.H"
 #include "WarpX.H"
+#include "BoundaryConditions/PEC_Insulator.H"
 #include "Particles/MultiParticleContainer.H"
 #include "Utils/WarpXAlgorithmSelection.H"
 
@@ -52,15 +53,16 @@ const Array<FieldBoundaryType,AMREX_SPACEDIM>& ImplicitSolver::GetFieldBoundaryH
 
 Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::GetLinOpBCLo () const
 {
-    return convertFieldBCToLinOpBC(m_WarpX->GetFieldBoundaryLo());
+    return convertFieldBCToLinOpBC(m_WarpX->GetFieldBoundaryLo(), 0);
 }
 
 Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::GetLinOpBCHi () const
 {
-    return convertFieldBCToLinOpBC(m_WarpX->GetFieldBoundaryHi());
+    return convertFieldBCToLinOpBC(m_WarpX->GetFieldBoundaryHi(), 1);
 }
 
-Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::convertFieldBCToLinOpBC (const Array<FieldBoundaryType,AMREX_SPACEDIM>& a_fbc) const
+Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::convertFieldBCToLinOpBC (const Array<FieldBoundaryType,AMREX_SPACEDIM>& a_fbc,
+                                                                           int iside) const
 {
     Array<LinOpBCType, AMREX_SPACEDIM> lbc;
     for (auto& bc : lbc) { bc = LinOpBCType::interior; }
