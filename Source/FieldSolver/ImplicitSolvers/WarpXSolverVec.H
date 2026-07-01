@@ -175,8 +175,8 @@ public:
      * \brief Y = a*X + b*Y
      *        Where X is MultiFabs, Y is WarpXSolverVec
      */
-    void linComb (const RT a, warpx::fields::FieldType a_Xarray_type, warpx::fields::FieldType a_Xscalar_type,
-                  const RT b, const WarpXSolverVec& Y,
+    void linComb (RT a, warpx::fields::FieldType a_Xarray_type, warpx::fields::FieldType a_Xscalar_type,
+                  RT b, const WarpXSolverVec& Y,
                   bool allow_type_mismatch = false);
 
     /**
