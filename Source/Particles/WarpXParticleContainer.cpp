@@ -3020,18 +3020,20 @@ WarpXParticleContainer::ResetImplicitParticleData (int lev)
 
         amrex::ParallelFor( np, [=] AMREX_GPU_DEVICE (long ip)
         {
-            amrex::ParticleReal xp = 0.0_prt;
-            amrex::ParticleReal yp = 0.0_prt;
-            amrex::ParticleReal zp = 0.0_prt;
-
 #if !defined(WARPX_DIM_1D_Z)
-            xp = x_n[ip];
+            amrex::ParticleReal const xp = x_n[ip];
+#else
+            amrex::ParticleReal const xp = 0.0_prt;
 #endif
 #if defined(WARPX_DIM_3D) || defined(WARPX_DIM_RZ) || defined(WARPX_DIM_RCYLINDER) || defined(WARPX_DIM_RSPHERE)
-            yp = y_n[ip];
+            amrex::ParticleReal const yp = y_n[ip];
+#else
+            amrex::ParticleReal const yp = 0.0_prt;
 #endif
 #if !defined(WARPX_DIM_RCYLINDER)
-            zp = z_n[ip];
+            amrex::ParticleReal const zp = z_n[ip];
+#else
+            amrex::ParticleReal const zp = 0.0_prt;
 #endif
 
             ux[ip] = ux_n[ip];
