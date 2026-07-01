@@ -3662,7 +3662,7 @@ class Simulation(picmistandard.PICMI_Simulation):
         Sets the default precision for reduced diagnostic output files
 
     warpx_tiny_profiler_flush_interval: string, optional
-        Sets interval to write out tiny profiler data.
+        Sets interval(s) to write out tiny profiler data.
         When not set, the tiny profiler data will only be written out
         at the end of the simulation.
     """
