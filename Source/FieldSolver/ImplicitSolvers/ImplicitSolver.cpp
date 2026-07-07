@@ -102,6 +102,64 @@ Array<LinOpBCType,AMREX_SPACEDIM> ImplicitSolver::convertFieldBCToLinOpBC (const
     return lbc;
 }
 
+int ImplicitSolver::OneStep (const amrex::Real  start_time,
+                             const amrex::Real  a_dt,
+                             const int          a_step)
+{
+    BL_PROFILE("ImplicitSolver::OneStep()");
+
+    // Fields have Eg^{n} and Bg^{n}
+    // Particles have up^{n} and xp^{n}.
+
+    // Set the member time step
+    m_dt = a_dt;
+
+    // Setup variables to handle substepping in case it is needed
+    int isubstep = 0;
+    m_nsubsteps = 1;
+    int const max_substeps = 8;
+    amrex::Real substep_start_time = start_time;
+    int exit_status;
+
+    while (isubstep < m_nsubsteps) {
+
+        SetupStep();
+
+        while (true) {
+            // Solve nonlinear system at t_{n+theta}
+            exit_status = DoSolve(substep_start_time, a_step);
+
+            if (exit_status >= 0) {
+                isubstep += 1;
+                break;
+            } else {
+                // Try again, dividing the step size in half
+                m_nsubsteps *= 2;
+                ablastr::warn_manager::WMRecordWarning("ThetaImplicitEM",
+                    "Notice: solver failed at step " + std::to_string(a_step) + ". " +
+                    "Attempting subcycling step " + std::to_string(isubstep) +
+                    " of " + std::to_string(m_nsubsteps) +
+                    " substeps, with exit status " + std::to_string(exit_status) + ".",
+                    ablastr::warn_manager::WarnPriority::low);
+                if (m_nsubsteps > max_substeps) {
+                    // Give up and just return the bad exit status
+                    return exit_status;
+                }
+                ResetStep();
+                m_dt /= 2._rt;
+                isubstep *= 2;
+            }
+        }
+
+        FinishStep(substep_start_time, a_step);
+
+        substep_start_time += m_dt;
+
+    }
+
+    return exit_status;
+}
+
 void ImplicitSolver::CumulateJ ()
 {
 

@@ -58,12 +58,20 @@ public:
 
     bool DoParticleSuborbits () const { return m_particle_suborbits; }
 
+    virtual void SetupStep() {}
+
+    virtual int DoSolve(amrex::Real a_start_time, int a_step) = 0;
+
+    virtual void ResetStep() {}
+
+    virtual void FinishStep(amrex::Real /* a_start_time */, int /* a_step */) {}
+
     /**
      * \brief Advance fields and particles by one time step using the specified implicit algorithm
      */
     virtual int OneStep (amrex::Real  a_time,
                          amrex::Real  a_dt,
-                         int          a_step) = 0;
+                         int          a_step);
 
     //
     // the following routines are called by the linear and nonlinear solvers
@@ -159,6 +167,11 @@ protected:
      * \brief Time step
      */
     mutable amrex::Real m_dt = 0.0;
+
+    /**
+     * \brief Number of substeps
+     */
+    int m_nsubsteps = 1;
 
     /**
      * \brief Time-biasing parameter for fields used on RHS to advance system.

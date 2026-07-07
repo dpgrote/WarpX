@@ -67,6 +67,15 @@ public:
 
     void PrintParameters () const override;
 
+    void SetupStep() override;
+
+    int DoSolve (amrex::Real  start_time,
+                 int          a_step) override;
+
+    void ResetStep() override;
+
+    void FinishStep(amrex::Real a_start_time, int a_step) override;
+
     /**
      * \brief Advances the simulation one time step
      *
