@@ -76,17 +76,6 @@ public:
 
     void FinishStep(amrex::Real a_start_time, int a_step) override;
 
-    /**
-     * \brief Advances the simulation one time step
-     *
-     * \param[in] start_time The time at the start of the time step
-     * \param[in] a_dt The time step size
-     * \param[in] a_step The time step number
-     */
-    int OneStep (amrex::Real  start_time,
-                 amrex::Real  a_dt,
-                 int          a_step) override;
-
     void ComputeRHS ( WarpXSolverVec&  a_RHS,
                 const WarpXSolverVec&  a_E,
                       amrex::Real      start_time,
@@ -131,8 +120,6 @@ private:
      * the solver, need to use m_E and m_Eold to compute E^{n+1}
      */
     void FinishFieldUpdate ( amrex::Real end_time );
-
-    int m_nsubsteps;
 
 };
 
