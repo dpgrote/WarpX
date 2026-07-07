@@ -69,7 +69,7 @@ public:
     /**
      * \brief Advance fields and particles by one time step using the specified implicit algorithm
      */
-    virtual int OneStep (amrex::Real  a_time,
+    virtual int OneStep (amrex::Real  start_time,
                          amrex::Real  a_dt,
                          int          a_step);
 
