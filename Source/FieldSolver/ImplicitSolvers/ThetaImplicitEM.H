@@ -67,14 +67,14 @@ public:
 
     void PrintParameters () const override;
 
-    void SetupStep() override;
+    void SetupStep (amrex::Real start_time) override;
 
     int DoSolve (amrex::Real  start_time,
                  int          a_step) override;
 
-    void ResetStep() override;
+    void ResetStep () override;
 
-    void FinishStep(amrex::Real a_start_time, int a_step) override;
+    void FinishStep (amrex::Real start_time, int a_step) override;
 
     void ComputeRHS ( WarpXSolverVec&  a_RHS,
                 const WarpXSolverVec&  a_E,

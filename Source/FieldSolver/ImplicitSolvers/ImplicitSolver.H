@@ -58,7 +58,7 @@ public:
 
     bool DoParticleSuborbits () const { return m_particle_suborbits; }
 
-    virtual void SetupStep() {}
+    virtual void SetupStep(amrex::Real /* start_time */) {}
 
     virtual int DoSolve(amrex::Real a_start_time, int a_step) = 0;
 

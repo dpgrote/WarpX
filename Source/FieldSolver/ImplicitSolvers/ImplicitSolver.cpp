@@ -123,7 +123,7 @@ int ImplicitSolver::OneStep (const amrex::Real  start_time,
 
     while (isubstep < m_nsubsteps) {
 
-        SetupStep();
+        SetupStep(substep_start_time);
 
         while (true) {
             // Solve nonlinear system at t_{n+theta}
