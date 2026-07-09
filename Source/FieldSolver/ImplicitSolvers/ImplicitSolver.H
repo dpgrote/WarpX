@@ -62,7 +62,7 @@ public:
 
     virtual int DoSolve(amrex::Real a_start_time, int a_step) = 0;
 
-    virtual void ResetStep() {}
+    virtual void ResetStep(amrex::Real /* start_time */) {}
 
     virtual void FinishStep(amrex::Real /* a_start_time */, int /* a_step */) {}
 

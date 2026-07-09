@@ -100,7 +100,7 @@ int SemiImplicitEM::DoSolve (const amrex::Real start_time, const int a_step)
     return m_nlsolver->GetExitStatus();
 }
 
-void SemiImplicitEM::ResetStep ()
+void SemiImplicitEM::ResetStep (amrex::Real start_time)
 {
     // FieldType::E_old still holds E at n-1, m_Eold E at n
     m_E.linComb(1.0_rt - m_theta, FieldType::E_old, FieldType::None, m_theta, m_Eold, true);
@@ -108,6 +108,10 @@ void SemiImplicitEM::ResetStep ()
 
     // Reset B field to start of step
     CopyVectorField(FieldType::Bfield_fp, FieldType::B_old);
+
+    // Advance WarpX owned Bfield_fp from t_{n} to t_{n+1/2}
+    m_WarpX->EvolveB(0.5_rt*m_dt, SubcyclingHalf::FirstHalf, start_time);
+    m_WarpX->FillBoundaryB(m_WarpX->getngEB(), true);
 }
 
 void SemiImplicitEM::FinishStep (const amrex::Real start_time, const int a_step)

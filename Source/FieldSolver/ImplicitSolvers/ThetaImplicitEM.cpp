@@ -109,7 +109,7 @@ int ThetaImplicitEM::DoSolve (const amrex::Real start_time, const int a_step)
     return m_nlsolver->GetExitStatus();
 }
 
-void ThetaImplicitEM::ResetStep ()
+void ThetaImplicitEM::ResetStep (amrex::Real /* start_time */)
 {
     // FieldType::E_old still holds E at n-1, m_Eold E at n
     m_E.linComb(1.0_rt - m_theta, FieldType::E_old, FieldType::None, m_theta, m_Eold, true);

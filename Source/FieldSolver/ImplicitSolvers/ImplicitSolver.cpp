@@ -134,19 +134,19 @@ int ImplicitSolver::OneStep (const amrex::Real  start_time,
                 break;
             } else {
                 // Try again, dividing the step size in half
-                m_nsubsteps *= 2;
                 ablastr::warn_manager::WMRecordWarning("ThetaImplicitEM",
                     "Notice: solver failed at step " + std::to_string(a_step) + ". " +
                     "Attempting subcycling step " + std::to_string(isubstep) +
                     " of " + std::to_string(m_nsubsteps) +
                     " substeps, with exit status " + std::to_string(exit_status) + ".",
                     ablastr::warn_manager::WarnPriority::low);
+                m_nsubsteps *= 2;
                 if (m_nsubsteps > max_substeps) {
                     // Give up and just return the bad exit status
                     return exit_status;
                 }
-                ResetStep();
                 m_dt /= 2._rt;
+                ResetStep(substep_start_time);
                 isubstep *= 2;
             }
         }
