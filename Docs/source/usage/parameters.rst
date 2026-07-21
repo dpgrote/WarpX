@@ -1004,6 +1004,17 @@ additionally define the electric potential at the embedded boundary with an anal
     inside the embedded boundary. For this reason, it is important to define
     this function in such a way that it is constant inside the embedded boundary.
 
+.. pp:param:: boundary.particle_eb
+    :type: ``string``
+    :default: ``Absorbing``
+    :optional:
+
+    The boundary condition applied to the particles when they reach the surface of the embedded boundary. Options are:
+
+    * ``Absorbing``: Particles that reach the embedded boundary are deleted. This is the default behavior.
+
+    * ``Reflecting``: Particles that reach the embedded boundary are specularly reflected back into the simulation domain
+
 .. _param-particle-thermalizer:
 
 Particle thermalizer
@@ -1618,12 +1629,13 @@ Particle initialization
       It requires additional argument ``<species_name>.density_function(x,y,z)``, which is a
       mathematical expression for the density of the species, e.g.
       ``electrons.density_function(x,y,z) = "n0+n0*x**2*1.e12"`` where ``n0`` is a
-      user-defined constant, see above. WARNING: where ``density_function(x,y,z)`` is close to zero, particles will still be injected between ``xmin`` and ``xmax`` etc., with a null weight. This is undesirable because it results in useless computing. To avoid this, see option ``density_min`` below.
+      user-defined constant, see above.
 
     * ``read_from_file``: load the density profile from an openPMD file.
       An additional parameter, indicating the path of an openPMD data file,
       ``<species_name>.read_density_from_path`` must be specified. The openPMD
-      file must contain a field named ``density``. See
+      file must contain a field with the name given by ``<species_name>.density_mesh_name``
+      (default ``density``). See
       `this file <https://github.com/BLAST-WarpX/warpx/blob/development/Examples/Tests/load_density/inputs_test_3d_load_density_prepare.py>`__
       for an example of how to prepare the openPMD data file. There is
       another optional parameter,
@@ -1654,6 +1666,10 @@ Particle initialization
     :optional:
 
     Minimum plasma density. No particle is injected where the density is below this value.
+    This is useful because, where the density is close to zero, particles would otherwise
+    still be injected between ``xmin`` and ``xmax`` etc., with a null weight. This is
+    undesirable because it results in useless computing. This option applies to all density
+    profiles (``constant``, ``parse_density_function`` and ``read_from_file``).
 
 .. pp:param:: <species_name>.density_max
     :type: ``float``
@@ -1661,6 +1677,7 @@ Particle initialization
     :optional:
 
     Maximum plasma density. The density at each point is the minimum between the value given in the profile, and ``density_max``.
+    This option applies to all density profiles (``constant``, ``parse_density_function`` and ``read_from_file``).
 
 .. pp:param:: <species_name>.radial_numpercell_power
     :type: ``float``
@@ -1920,7 +1937,7 @@ Particle initialization
     buffer for the specified boundary if they leave the simulation domain in
     the specified direction. **If USE_EB=TRUE** the ``save_particles_at_eb``
     flag can be set to ``1`` to also save particle data for the particles of this
-    species that impact the embedded boundary.
+    species that are absorbed at the embedded boundary.
     The scraped particle buffer can be used to track particle fluxes out of the
     simulation.
     The particle data can be written out by setting up a ``BoundaryScrapingDiagnostic``.
@@ -3043,28 +3060,52 @@ Details about the collision models can be found in the :ref:`theory section <mul
     :type: ``strings`` separated by spaces
 
     Only for ``dsmc`` and ``background_mcc``. The scattering processes that should be
-    included. Available options are ``elastic``, ``excitationX``, ``forward``, ``back``, ``twoproduct_reaction`` and ``charge_exchange``
-    for ions and ``elastic``, ``excitationX``, ``ionization`` & ``forward`` for electrons.
-    Multiple excitation events can be included for electrons corresponding to
-    excitation to different levels, the ``X`` above can be changed to a unique
-    identifier for each excitation process. For each scattering process specified
+    included. Available options are ``elasticX``, ``excitationX``, ``twoproduct_reaction`` and ``charge_exchange``
+    for ions and ``elasticX``, ``excitationX`` and ``ionization`` for electrons.
+    Multiple elastic and excitation events can be included, corresponding e.g. to
+    excitation to different levels or to several elastic channels (with different
+    cross-sections and/or scattering angle models); the ``X`` above can be changed
+    to a unique identifier for each such process. For each scattering process specified
     a path to a cross-section data file must also be given. We use
     ``<scattering_process>`` as a placeholder going forward.
+
+    For ``elasticX``, ``excitationX``, ``charge_exchange`` and ``twoproduct_reaction``, the
+    angular distribution is controlled by the per-process
+    :pp:param:`<collision_name>.<scattering_process>_scattering_angle_model` argument.
 
 .. pp:param:: <collision_name>.<scattering_process>_cross_section
     :type: ``string``
 
     Only for ``dsmc`` and ``background_mcc``. Path to the file containing cross-section data
     for the given scattering processes. The cross-section file must have exactly
-    2 columns of data, the first containing equally spaced energies in eV and the
+    2 columns of data, the first containing energies in eV and the
     second the corresponding cross-section in :math:`m^2`. The energy column should
-    represent the kinetic energy of the colliding particles in the center-of-mass frame.
+    represent the kinetic energy of the center-of-mass frame. The energy values in this column
+    must be in strictly increasing order.
 
 .. pp:param:: <collision_name>.<scattering_process>_energy
     :type: ``float``
 
-    Only for ``dsmc`` and ``background_mcc``. If the scattering process is either
-    ``excitationX``, ``ionization`` or ``twoproduct_reaction``, the energy cost of that process must be given in eV.
+    Only for ``dsmc`` and ``background_mcc``. The energy cost of the process, in eV. It is
+    required for ``excitationX`` and ``ionization``, optional for ``charge_exchange`` and
+    ``twoproduct_reaction`` (which may impose a fixed energy loss, defaulting to 0), and
+    ignored for ``elasticX`` processes (which have no energy cost).
+
+.. pp:param:: <collision_name>.<scattering_process>_scattering_angle_model
+    :type: ``string``
+    :optional:
+
+    Only for ``dsmc`` and ``background_mcc``, and only for ``elasticX``, ``excitationX``,
+    ``charge_exchange`` and ``twoproduct_reaction``.
+    The model used to determine the scattering angle of the products
+    in the center-of-mass frame. The possible values are ``isotropic``, ``forward`` and ``backward``.
+    The default is ``isotropic`` for ``elasticX`` and ``excitationX``, and ``forward`` for
+    ``charge_exchange`` and ``twoproduct_reaction``.
+    With ``isotropic``, the scattering angle is drawn from an isotropic distribution.
+    With ``forward``, the scattering angle is set to zero, i.e. the products keep the same direction
+    as the incident particle (in the center of mass frame).
+    With ``backward``, the scattering angle is set to :math:`\pi`, i.e. the products are emitted in
+    the opposite direction of the incident particle (in the center of mass frame).
 
 .. pp:param:: <collision_name>.ionization_species
     :type: ``float``
@@ -3394,7 +3435,7 @@ Two families of Maxwell solvers are implemented in WarpX, based on the Finite-Di
      - ``ckc``: (not available in ``RZ``, ``RCYLINDER``, and ``RSPHERE`` geometries) Cole-Karkkainen solver with Cowan
        coefficients (see :cite:t:`param-CowanPRSTAB13`).
      - ``psatd``: Pseudo-spectral solver (see :ref:`theory <theory-mwsolve-psatd>`).
-     - ``ect``: Enlarged cell technique (conformal finite difference solver. See :cite:t:`param-XiaoIEEE2005`).
+     - ``ect``: Enlarged cell technique (conformal finite difference solver. See :cite:t:`param-XiaoIEEE2004`).
      - ``hybrid``: The E-field will be solved using Ohm's law and a kinetic-fluid hybrid model (see :ref:`theory <theory-kinetic-fluid-hybrid-model>`).
      - ``none``: No field solve will be performed.
 
@@ -3709,11 +3750,17 @@ Maxwell solver: kinetic-fluid hybrid
     If :pp:param:`algo.maxwell_solver` is set to ``hybrid``, this sets the total number of sub-steps used to advance
     the B-field over one full timestep (split evenly between the two half-steps, so ``substeps/2`` RK4 steps are taken
     per half-step, each of duration :math:`\Delta t / \text{substeps}`). Must be divisible by 2; if not, the value is
-    automatically rounded up to the next even number. When :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this is
+    automatically rounded up to the next even number. When :pp:param:`hybrid_pic_model.use_rkf45` is active, this is
     instead used only as the initial substep count estimate for the adaptive solver.
+    After each timestep on which :pp:param:`hybrid_pic_model.use_rkf45` is active, this value is updated based on
+    ``n_attempts``, the total number of RKF45 sub-step attempts (accepted and rejected) taken in the most recent
+    half-step: if the current value is less than ``2 * n_attempts``, it jumps immediately to ``2 * n_attempts``;
+    otherwise it decays slowly toward that target via exponential smoothing (95% of the current value,
+    5% of ``2 * n_attempts``). This warm-start guess also carries over to RK4 steps on timesteps where
+    :pp:param:`hybrid_pic_model.use_rkf45` is not active.
 
 .. pp:param:: hybrid_pic_model.use_rkf45
-    :type: ``bool``
+    :type: ``string`` or ``bool``
     :default: ``false``
     :optional:
 
@@ -3724,12 +3771,18 @@ Maxwell solver: kinetic-fluid hybrid
     is used, controlling the local truncation error to stay within
     :pp:param:`hybrid_pic_model.substep_rtol` and :pp:param:`hybrid_pic_model.substep_atol`.
 
+    This parameter also accepts the `Time intervals`_ syntax to enable the RKF45 integrator only
+    on specific timesteps, e.g. ``hybrid_pic_model.use_rkf45 = 1::5``, which enables RKF45
+    every 5 steps from step 1.
+    When ``false`` or ``0``, the RKF45 integrator is never used.
+    When ``true``, ``1``, or ``::`` the RKF45 integrator is used at every timestep.
+
 .. pp:param:: hybrid_pic_model.substep_rtol
     :type: ``float``
     :default: ``1e-4``
     :optional:
 
-    If :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this sets the relative tolerance for the RKF45
+    If :pp:param:`hybrid_pic_model.use_rkf45` is active, this sets the relative tolerance for the RKF45
     adaptive step-size control.
 
 .. pp:param:: hybrid_pic_model.substep_atol
@@ -3737,7 +3790,7 @@ Maxwell solver: kinetic-fluid hybrid
     :default: ``1e-8``
     :optional:
 
-    If :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this sets the absolute tolerance for the RKF45
+    If :pp:param:`hybrid_pic_model.use_rkf45` is active, this sets the absolute tolerance for the RKF45
     adaptive step-size control.
 
 .. pp:param:: hybrid_pic_model.substep_safety
@@ -3745,7 +3798,7 @@ Maxwell solver: kinetic-fluid hybrid
     :default: ``0.9``
     :optional:
 
-    If :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this sets the safety factor applied to the
+    If :pp:param:`hybrid_pic_model.use_rkf45` is active, this sets the safety factor applied to the
     step-size adjustment formula.
 
 .. pp:param:: hybrid_pic_model.substep_max_growth
@@ -3753,7 +3806,7 @@ Maxwell solver: kinetic-fluid hybrid
     :default: ``5.0``
     :optional:
 
-    If :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this sets the maximum factor by which the
+    If :pp:param:`hybrid_pic_model.use_rkf45` is active, this sets the maximum factor by which the
     substep size may grow after an accepted step.
 
 .. pp:param:: hybrid_pic_model.max_substep_attempts
@@ -3761,7 +3814,7 @@ Maxwell solver: kinetic-fluid hybrid
     :default: ``250``
     :optional:
 
-    If :pp:param:`hybrid_pic_model.use_rkf45` is ``true``, this sets the maximum number of substep attempts
+    If :pp:param:`hybrid_pic_model.use_rkf45` is active, this sets the maximum number of substep attempts
     (accepted and rejected combined) per half-step before the simulation aborts.
 
 .. pp:param:: hybrid_pic_model.holmstrom_vacuum_region
@@ -4267,6 +4320,7 @@ In-situ capabilities can be used by turning on Sensei or Ascent (provided they a
     Fields written to output.
     Possible scalar fields: ``part_per_cell`` ``rho`` ``phi`` ``F`` ``part_per_grid`` ``proc_num`` ``divE`` ``divB`` ``eb_covered`` ``rho_<species_name>`` and ``T_<species_name>``, where ``<species_name>`` must match the name of one of the available particle species.
     ``T_<species_name>`` is the temperature in eV (only valid for non-relativistic plasmas, since the code relies on the equipartition theorem to extract the temperature).
+    With the hybrid-PIC solver (:pp:param:`algo.maxwell_solver` = ``hybrid``), the scalar fields ``Te`` (electron temperature in K, as implied by the electron-pressure closure) and ``Pe`` (electron pressure in Pa, as used in the Ohm's-law E-field solve) are also available.
     ``eb_covered`` is a number between 0 and 1 that indicates the fraction of the cell that is covered by the embedded boundary.
     Note that ``phi`` will only be written out when ``do_electrostatic==labframe``.
     Also, note that for :pp:param:`<diag_name>.diag_type = BackTransformed`, the only scalar field currently supported is ``rho``.
@@ -4658,9 +4712,9 @@ This can be important if a large number of particles are lost, avoiding filling 
 In addition to their usual attributes, the saved particles have
    an integer attribute ``stepScraped``, which indicates the PIC iteration at which each particle was absorbed at the boundary,
    a real attribute ``deltaTimeScraped``, which indicates the time between the time associated to ``stepScraped``
-   and the exact time when each particle hits the boundary,
-   a real attribute ``timeScraped``, which indicates the exact time when the paritcle hit the boundary,
-   3 real attributes ``nx``, ``ny``, ``nz``, which represents the three components of the normal to the boundary on the point of contact of the particles (not saved if they reach non-EB boundaries)
+   and the exact time when each particle is absorbed at the boundary,
+   a real attribute ``timeScraped``, which indicates the exact time when the particle is absorbed at the boundary,
+   3 real attributes ``nx``, ``ny``, ``nz``, which represents the three components of the normal to the boundary at the point where the particle is absorbed (not saved if they reach non-EB boundaries)
 
 ``BoundaryScrapingDiagnostics`` can be used with :pp:param:`<diag_name>.<species_name>.random_fraction`, :pp:param:`<diag_name>.<species_name>.uniform_stride`, and ``<diag_name>.<species_name>.plot_filter_function``, which have the same behavior as for ``FullDiagnostics``. For ``BoundaryScrapingDiagnostics``, these filters are applied at the time the data is written to file. An implication of this is that more particles may initially be accumulated in memory than are ultimately written. ``t`` in ``plot_filter_function`` refers to the time the diagnostic is written rather than the time the particle crossed the boundary.
 
