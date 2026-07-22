@@ -290,6 +290,17 @@ void WarpX::MakeWarpX ()
     std::tie(particle_boundary_lo, particle_boundary_hi) =
         warpx::particles::parse_particle_boundaries(is_field_boundary_periodic);
 
+    // Parse embedded boundary particle boundary condition
+    if (EB::enabled()) {
+        amrex::ParmParse const pp_boundary("boundary");
+        // Defaults to Absorbing; overwritten only if boundary.particle_eb is set.
+        pp_boundary.query_enum_case_insensitive("particle_eb", eb_particle_boundary);
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
+            eb_particle_boundary == ParticleBoundaryType::Absorbing ||
+            eb_particle_boundary == ParticleBoundaryType::Reflecting,
+            "boundary.particle_eb must be Absorbing or Reflecting");
+    }
+
     CheckGriddingForRZSpectral();
 
     m_instance = new WarpX();
@@ -759,7 +770,7 @@ WarpX::ReadParameters ()
 #ifndef WARPX_USE_FFT
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
         poisson_solver_id!=PoissonSolverAlgo::IntegratedGreenFunction,
-        "To use the FFT Poisson solver, compile with WARPX_USE_FFT=ON.");
+        "To use the FFT Poisson solver, compile with -DWarpX_FFT=ON.");
 #endif
         // Read magnetostatic solver parameters
         // First use self_fields_* as defaults for backward compatibility,
@@ -3630,7 +3641,7 @@ WarpX::getFieldDotMaskPointer ( FieldType field_type, int lev, ablastr::fields::
             ::SetDotMask( Afield_dotMask[lev][dir], m_fields.get("vector_potential_fp", dir, lev), periodicity);
             return Afield_dotMask[lev][dir].get();
         case FieldType::phi_fp :
-            ::SetDotMask( phi_dotMask[lev], m_fields.get("phi_fp", dir, lev), periodicity);
+            ::SetDotMask( phi_dotMask[lev], m_fields.get("phi_fp", lev), periodicity);
             return phi_dotMask[lev].get();
         default:
             WARPX_ABORT_WITH_MESSAGE("Invalid field type for dotMask");

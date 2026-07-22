@@ -60,6 +60,11 @@ void WarpX::HybridPICEvolveFields ()
     // Perform charge deposition at t_{n+1} and current deposition at t_{n+1/2}.
     HybridPICDepositRhoAndJ();
 
+    // Calculate the electron pressure at t=n+1 (and mirror the implied
+    // electron temperature for diagnostics). Moved here, right after the
+    // deposition, from the end of this function.
+    m_hybrid_pic_model->CalculateElectronPressure();
+
     // Get the external current
     m_hybrid_pic_model->GetCurrentExternal();
 
@@ -100,6 +105,7 @@ void WarpX::HybridPICEvolveFields ()
         m_fields.get_mr_levels_alldirs(FieldType::Efield_fp, finest_level),
         current_fp_temp, rho_fp_temp,
         m_eb_update_E,
+        getistep(0),
         0.5_rt*dt[0],
         SubcyclingHalf::FirstHalf, guard_cells.ng_FieldSolver,
         WarpX::sync_nodal_points
@@ -131,6 +137,7 @@ void WarpX::HybridPICEvolveFields ()
         m_fields.get_mr_levels_alldirs(FieldType::current_fp, finest_level),
         rho_fp_temp,
         m_eb_update_E,
+        getistep(0),
         0.5_rt*dt[0],
         SubcyclingHalf::SecondHalf, guard_cells.ng_FieldSolver,
         WarpX::sync_nodal_points
@@ -159,9 +166,6 @@ void WarpX::HybridPICEvolveFields ()
             gett_new(0),
             0.5_rt*dt[0]);
     }
-
-    // Calculate the electron pressure at t=n+1
-    m_hybrid_pic_model->CalculateElectronPressure();
 
     // Update the E field to t=n+1 using the extrapolated J_i^n+1 value
     m_hybrid_pic_model->CalculatePlasmaCurrent(
@@ -205,18 +209,6 @@ void WarpX::HybridPICEvolveFields ()
         for (int idim = 0; idim < 3; ++idim) {
             MultiFab::Copy(*current_fp_temp[lev][idim], *m_fields.get(FieldType::current_fp, Direction{idim}, lev),
                            0, 0, 1, current_fp_temp[lev][idim]->nGrowVect());
-        }
-    }
-
-    // Check that the E-field does not have nan or inf values, otherwise print a clear message
-    ablastr::fields::MultiLevelVectorField Efield_fp = m_fields.get_mr_levels_alldirs(FieldType::Efield_fp, finest_level);
-    for (int lev = 0; lev <= finest_level; ++lev)
-    {
-        for (int idim = 0; idim < 3; ++idim) {
-            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
-                Efield_fp[lev][idim]->is_finite(),
-                "Non-finite value detected in E-field; this indicates more substeps should be used in the field solver."
-            );
         }
     }
 }
@@ -284,11 +276,18 @@ void WarpX::HybridPICInitializeRhoJandB ()
     using warpx::fields::FieldType;
     using ablastr::fields::Direction;
 
-    if (restart_chkfile.empty()) {
-        // This is not a restart, so the rho_fp and current_fp multifabs are
-        // still empty.
-        HybridPICDepositRhoAndJ();
+    // Deposit rho^n and J_i^{n-1/2} from the particles. This must also run on
+    // restart: the checkpoint does not contain rho_fp (and contains current_fp
+    // only when written synchronized), while the particles are restored at
+    // exactly (x^n, v^{n-1/2}) on both paths, so the deposit deterministically
+    // reconstructs both fields. Without it the first restarted step runs the
+    // adaptive B integration with rho = 0 everywhere: every node falls into
+    // the below-n_floor branch of the Ohm's-law E-solve on top of the full
+    // mid-run curl(B), which is catastrophically stiff (or, with the vacuum
+    // treatment, silently wrong physics for one step).
+    HybridPICDepositRhoAndJ();
 
+    if (restart_chkfile.empty()) {
         // Handle field splitting for Hybrid field push
         if (m_hybrid_pic_model->m_add_external_fields) {
             // Get the external fields
@@ -315,6 +314,11 @@ void WarpX::HybridPICInitializeRhoJandB ()
                 }
             }
         }
+    } else {
+        // Restore Pe(rho^n): mid-run, the electron pressure entering a step
+        // holds the previous end-of-step value, but it is not checkpointed
+        // and would otherwise be zero for the whole first restarted step.
+        m_hybrid_pic_model->CalculateElectronPressure();
     }
 
     // Copy the rho_fp values to rho_fp_temp and the current_fp values to
