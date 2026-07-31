@@ -2494,9 +2494,9 @@ WarpX::AllocLevelMFs (int lev, const BoxArray& ba, const DistributionMapping& dm
     // Set global rho nodal flag to know about rho index type when rho MultiFab is not allocated
     m_rho_nodal_flag = rho_nodal_flag;
 
-    bool remake = true;
-    bool redistribute_on_remake = true;
-    bool checkpoint_restart = true;
+    const bool remake = true;
+    const bool redistribute_on_remake = true;
+    const bool checkpoint_restart = true;
 
     //
     // The fine patch
