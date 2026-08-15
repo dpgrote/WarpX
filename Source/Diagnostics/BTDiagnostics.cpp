@@ -237,7 +237,7 @@ BTDiagnostics::ReadParameters ()
     const amrex::ParmParse pp_diag_name(m_diag_name);
 
     m_file_prefix = "diags/" + m_diag_name;
-    pp_diag_name.query("file_prefix", m_file_prefix);
+    utils::parser::queryWithParser(pp_diag_name, "file_prefix", m_file_prefix);
     pp_diag_name.query("do_back_transformed_fields", m_do_back_transformed_fields);
     pp_diag_name.query("do_back_transformed_particles", m_do_back_transformed_particles);
     AMREX_ALWAYS_ASSERT(m_do_back_transformed_fields or m_do_back_transformed_particles);

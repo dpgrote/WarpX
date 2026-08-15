@@ -18,7 +18,7 @@
 #include <map>
 #include <set>
 
-void utils::parser::getWithParser (const amrex::ParmParse& a_pp, char const * const str, std::string& val)
+void utils::parser::getWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::string& val)
 {
     // Get the value of the input parameter
     a_pp.get(str, val);
@@ -36,7 +36,7 @@ void utils::parser::getWithParser (const amrex::ParmParse& a_pp, char const * co
     }
 }
 
-int utils::parser::queryWithParser (const amrex::ParmParse& a_pp, char const * const str, std::string& val)
+int utils::parser::queryWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::string& val)
 {
     const bool is_specified = a_pp.query(str, val);
     if (is_specified) {
@@ -91,7 +91,7 @@ bool utils::parser::Query_parserString(
     return input_specified;
 }
 
-int utils::parser::query (const amrex::ParmParse& a_pp, std::string const& group, char const * str, std::string& val)
+int utils::parser::query (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::string& val)
 {
     const bool is_specified_without_group = a_pp.contains(str);
     const std::string grp_str = group + "." + std::string(str);
@@ -106,7 +106,7 @@ int utils::parser::query (const amrex::ParmParse& a_pp, std::string const& group
     }
 }
 
-void utils::parser::get (const amrex::ParmParse& a_pp, std::string const& group, char const * str, std::string& val)
+void utils::parser::get (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::string& val)
 {
     const bool is_specified_without_group = a_pp.contains(str);
     const std::string grp_str = group + "." + std::string(str);

@@ -136,12 +136,12 @@ MultiParticleContainer::ReadParameters ()
         // default values of E_external_particle and B_external_particle
         // are used to set the E and B field when "constant" or "parser"
         // is not explicitly used in the input
-        pp_particles.query("B_ext_particle_init_style", m_B_ext_particle_s);
+        utils::parser::queryWithParser(pp_particles, "B_ext_particle_init_style", m_B_ext_particle_s);
         std::transform(m_B_ext_particle_s.begin(),
                        m_B_ext_particle_s.end(),
                        m_B_ext_particle_s.begin(),
                        ::tolower);
-        pp_particles.query("E_ext_particle_init_style", m_E_ext_particle_s);
+        utils::parser::queryWithParser(pp_particles, "E_ext_particle_init_style", m_E_ext_particle_s);
         std::transform(m_E_ext_particle_s.begin(),
                        m_E_ext_particle_s.end(),
                        m_E_ext_particle_s.begin(),
@@ -320,7 +320,7 @@ MultiParticleContainer::ReadParameters ()
 
                 bool species_type_is_photon = false;
                 const ParmParse pp_species(name);
-                if (auto type_string = std::string {}; pp_species.query("species_type", type_string)){
+                if (auto type_string = std::string {}; utils::parser::queryWithParser(pp_species, "species_type", type_string)){
                     const auto physical_species = species::from_string(type_string);
                     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                         physical_species.has_value(),
@@ -1323,7 +1323,7 @@ void MultiParticleContainer::InitQuantumSync ()
     utils::parser::getWithParser(pp_qed_qs, "chi_min", qs_minimum_chi_part);
 
 
-    pp_qed_qs.query("lookup_table_mode", lookup_table_mode);
+    utils::parser::queryWithParser(pp_qed_qs, "lookup_table_mode", lookup_table_mode);
     if(lookup_table_mode.empty()){
         WARPX_ABORT_WITH_MESSAGE("Quantum Synchrotron table mode should be provided");
     }
@@ -1340,7 +1340,7 @@ void MultiParticleContainer::InitQuantumSync ()
     }
     else if(lookup_table_mode == "load"){
         std::string load_table_name;
-        pp_qed_qs.query("load_table_from", load_table_name);
+        utils::parser::queryWithParser(pp_qed_qs, "load_table_from", load_table_name);
         ablastr::warn_manager::WMRecordWarning("QED",
             "The Quantum Synchrotron table will be read from the file: " + load_table_name,
             ablastr::warn_manager::WarnPriority::low);
@@ -1382,7 +1382,7 @@ void MultiParticleContainer::InitBreitWheeler ()
         WARPX_ABORT_WITH_MESSAGE("qed_bw.chi_min should be provided!");
     }
 
-    pp_qed_bw.query("lookup_table_mode", lookup_table_mode);
+    utils::parser::queryWithParser(pp_qed_bw, "lookup_table_mode", lookup_table_mode);
     if(lookup_table_mode.empty()){
         WARPX_ABORT_WITH_MESSAGE("Breit Wheeler table mode should be provided");
     }
@@ -1399,7 +1399,7 @@ void MultiParticleContainer::InitBreitWheeler ()
     }
     else if(lookup_table_mode == "load"){
         std::string load_table_name;
-        pp_qed_bw.query("load_table_from", load_table_name);
+        utils::parser::queryWithParser(pp_qed_bw, "load_table_from", load_table_name);
         ablastr::warn_manager::WMRecordWarning("QED",
             "The Breit Wheeler table will be read from the file:" + load_table_name,
             ablastr::warn_manager::WarnPriority::low);
@@ -1433,7 +1433,7 @@ MultiParticleContainer::QuantumSyncGenerateTable ()
 {
     const ParmParse pp_qed_qs("qed_qs");
     std::string table_name;
-    pp_qed_qs.query("save_table_in", table_name);
+    utils::parser::queryWithParser(pp_qed_qs, "save_table_in", table_name);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
         !table_name.empty(),
         "qed_qs.save_table_in should be provided!");
@@ -1522,7 +1522,7 @@ MultiParticleContainer::BreitWheelerGenerateTable ()
 {
     const ParmParse pp_qed_bw("qed_bw");
     std::string table_name;
-    pp_qed_bw.query("save_table_in", table_name);
+    utils::parser::queryWithParser(pp_qed_bw, "save_table_in", table_name);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
         !table_name.empty(),
         "qed_bw.save_table_in should be provided!");

@@ -11,6 +11,7 @@
 #include "FieldSolver/FiniteDifferenceSolver/FiniteDifferenceSolver.H"
 #include "Initialization/DivCleaner/ProjectionDivCleaner.H"
 #include "Fields.H"
+#include "Utils/Parser/ParserUtils.H"
 #include "WarpX.H"
 
 #include <ablastr/fields/MultiFabRegister.H>
@@ -65,7 +66,7 @@ ExternalVectorPotential::ReadParameters ()
         m_read_A_from_file[i] = read_from_file;
 
         if (m_read_A_from_file[i]) {
-            pp_ext_A.query(m_field_names[i]+".path", m_external_file_path[i]);
+            utils::parser::queryWithParser(pp_ext_A, m_field_names[i]+".path", m_external_file_path[i]);
         } else {
             pp_ext_A.query(m_field_names[i]+".Ax_external_grid_function(x,y,z)",
                 m_Ax_ext_grid_function[i]);

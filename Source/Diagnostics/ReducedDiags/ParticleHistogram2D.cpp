@@ -59,7 +59,7 @@ ParticleHistogram2D::ParticleHistogram2D (const std::string& rd_name)
 {
     ParmParse pp_rd_name(rd_name);
 
-    pp_rd_name.query("openpmd_backend", m_openpmd_backend);
+    utils::parser::queryWithParser(pp_rd_name, "openpmd_backend", m_openpmd_backend);
     pp_rd_name.query("file_min_digits", m_file_min_digits);
     // pick first available backend if default is chosen
     if( m_openpmd_backend == "default" ) {

@@ -84,7 +84,7 @@ DifferentialLuminosity2D::DifferentialLuminosity2D (const std::string& rd_name)
         m_beam_name.size() == 2u,
         "DifferentialLuminosity2D diagnostics must involve exactly two species");
 
-    pp_rd_name.query("openpmd_backend", m_openpmd_backend);
+    utils::parser::queryWithParser(pp_rd_name, "openpmd_backend", m_openpmd_backend);
     pp_rd_name.query("file_min_digits", m_file_min_digits);
     // pick first available backend if default is chosen
     if( m_openpmd_backend == "default" ) {

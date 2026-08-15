@@ -101,14 +101,14 @@ namespace utils::parser
      * \param[out] val where the value queried and parsed is stored, either a scalar or vector
      */
     template <typename T>
-    int queryWithParser (const amrex::ParmParse& a_pp, char const * const str, T& val)
+    int queryWithParser (const amrex::ParmParse& a_pp, std::string_view str, T& val)
     {
         return a_pp.queryAsDouble(str, val);
     }
 
 
     template <typename T>
-    int queryArrWithParser (const amrex::ParmParse& a_pp, char const * const str, std::vector<T>& val)
+    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<T>& val)
     {
         auto nvals = a_pp.countval(str);
         if (nvals > 0) {
@@ -136,7 +136,7 @@ namespace utils::parser
      * amrex::ParmParse::LAST for reading until the last input value)
      */
     template <typename T>
-    int queryArrWithParser (const amrex::ParmParse& a_pp, char const * const str, std::vector<T>& val,
+    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<T>& val,
                             const int start_ix, const int num_val)
     {
         const int is_specified = queryArrWithParser(a_pp, str, val);
@@ -165,13 +165,13 @@ namespace utils::parser
      * \param[out] val where the value queried and parsed is stored
      */
     template <typename T>
-    void getWithParser (const amrex::ParmParse& a_pp, char const * const str, T& val)
+    void getWithParser (const amrex::ParmParse& a_pp, std::string_view str, T& val)
     {
         a_pp.getAsDouble(str, val);
     }
 
     template <typename T>
-    void getArrWithParser (const amrex::ParmParse& a_pp, char const * const str, std::vector<T>& val)
+    void getArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<T>& val)
     {
         int const is_specified = queryArrWithParser(a_pp, str, val);
         if (is_specified == 0) {
@@ -199,7 +199,7 @@ namespace utils::parser
      * amrex::ParmParse::LAST for reading until the last input value)
      */
     template <typename T>
-    void getArrWithParser (const amrex::ParmParse& a_pp, char const * const str, std::vector<T>& val,
+    void getArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<T>& val,
                         const int start_ix, const int num_val)
     {
         int const is_specified = queryArrWithParser(a_pp, str, val, start_ix, num_val);
@@ -226,7 +226,7 @@ namespace utils::parser
      * \param[in] str name of the parameter to read
      * \param[out] val where the value queried and parsed is stored
      */
-    void getWithParser (const amrex::ParmParse& a_pp, char const * str, std::string& val);
+    void getWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::string& val);
 
     /** Similar to amrex::ParmParse::query, but also supports replacement of bracketed names, similar
      * to how f-strings are processed in Python.
@@ -242,7 +242,7 @@ namespace utils::parser
      * \param[in] str name of the parameter to read
      * \param[out] val where the value queried and parsed is stored
      */
-    int queryWithParser (const amrex::ParmParse& a_pp, char const * str, std::string& val);
+    int queryWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::string& val);
 
 
     /** Similar to amrex::ParmParse::queryWithParser
@@ -262,7 +262,7 @@ namespace utils::parser
      * \param[out] val where the value queried and parsed is stored, either a scalar or vector
      */
     template <typename T>
-    int queryWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, T& val)
+    int queryWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, T& val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
         const std::string grp_str = group + "." + std::string(str);
@@ -279,7 +279,7 @@ namespace utils::parser
 
 
     template <typename T>
-    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, std::vector<T>& val)
+    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::vector<T>& val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
         const std::string grp_str = group + "." + std::string(str);
@@ -316,7 +316,7 @@ namespace utils::parser
      * amrex::ParmParse::LAST for reading until the last input value)
      */
     template <typename T>
-    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, std::vector<T>& val,
+    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::vector<T>& val,
                             const int start_ix, const int num_val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
@@ -344,7 +344,7 @@ namespace utils::parser
      * \param[in] str name of the parameter to read
      * \param[out] val where the value queried and parsed is stored
      */
-    int query (const amrex::ParmParse& a_pp, std::string const& group, char const * str, std::string& val);
+    int query (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::string& val);
 
     /** Similar to amrex::ParmParse::getWithParser
      *
@@ -363,7 +363,7 @@ namespace utils::parser
      * \param[out] val where the value queried and parsed is stored
      */
     template <typename T>
-    void getWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, T& val)
+    void getWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, T& val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
         const std::string grp_str = group + "." + std::string(str);
@@ -379,7 +379,7 @@ namespace utils::parser
     }
 
     template <typename T>
-    void getArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, std::vector<T>& val)
+    void getArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::vector<T>& val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
         const std::string grp_str = group + "." + std::string(str);
@@ -416,7 +416,7 @@ namespace utils::parser
      * amrex::ParmParse::LAST for reading until the last input value)
      */
     template <typename T>
-    void getArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, char const * const str, std::vector<T>& val,
+    void getArrWithParser (const amrex::ParmParse& a_pp, std::string const& group, std::string_view str, std::vector<T>& val,
                         const int start_ix, const int num_val)
     {
         const bool is_specified_without_group = a_pp.contains(str);
@@ -444,7 +444,7 @@ namespace utils::parser
      * \param[in] str name of the parameter to read
      * \param[out] val where the value queried and parsed is stored
      */
-    void get (amrex::ParmParse const& a_pp, std::string const& group, char const * str, std::string& val);
+    void get (amrex::ParmParse const& a_pp, std::string const& group, std::string_view str, std::string& val);
 
 }
 

@@ -79,7 +79,7 @@ ParticleHistogram::ParticleHistogram (const std::string& rd_name)
 
     // read normalization type
     std::string norm_string = "default";
-    pp_rd_name.query("normalization",norm_string);
+    utils::parser::queryWithParser(pp_rd_name, "normalization",norm_string);
 
     // set normalization type
     if ( norm_string == "default" ) {

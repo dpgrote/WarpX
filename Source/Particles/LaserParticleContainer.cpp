@@ -143,15 +143,15 @@ LaserParticleContainer::LaserParticleContainer (AmrCore* amr_core, int ispecies,
     for(const std::string& lasersiter : backward_laser_names){
         const ParmParse pp_name(lasersiter);
         std::string backward_profile;
-        std::stringstream lasers;
-        pp_name.query("profile", backward_profile);
+        bool const backward_profile_provided = utils::parser::queryWithParser(pp_name, "profile", backward_profile);
         if (backward_profile == "from_txye_file") {
+            std::stringstream lasers;
             lasers << "'" << lasersiter << ".profile = " + backward_profile + "'";
             lasers << " is not supported anymore. ";
             lasers << "Please use instead: ";
             lasers << "'" << lasersiter << ".profile = from_file'";
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
-                !pp_name.query("profile", backward_profile),
+                !backward_profile_provided,
                 lasers.str());
         }
     }

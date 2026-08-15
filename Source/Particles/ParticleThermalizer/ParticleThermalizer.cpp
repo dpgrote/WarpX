@@ -31,7 +31,7 @@ ParticleThermalizer::ParticleThermalizer():
 
   // Read normal as a string (x, y, or z)
   std::string normal_str;
-  const bool thermalizer_present = pp.query("normal", normal_str);
+  const bool thermalizer_present = utils::parser::queryWithParser(pp, "normal", normal_str);
   if (!thermalizer_present) {
     // If no normal is specified, the thermalizer is not defined
     return;

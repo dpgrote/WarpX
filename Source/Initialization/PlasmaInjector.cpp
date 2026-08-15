@@ -124,7 +124,7 @@ PlasmaInjector::PlasmaInjector (int ispecies, const std::string& name,
     utils::parser::queryWithParser(pp_species, source_name, "density_max", density_max);
 
     std::string injection_style = "none";
-    utils::parser::query(pp_species, source_name, "injection_style", injection_style);
+    utils::parser::queryWithParser(pp_species, source_name, "injection_style", injection_style);
     std::transform(injection_style.begin(),
                    injection_style.end(),
                    injection_style.begin(),

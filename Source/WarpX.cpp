@@ -562,13 +562,13 @@ WarpX::ReadParameters ()
         const ParmParse pp;// Traditionally, max_step and stop_time do not have prefix.
         utils::parser::queryWithParser(pp, "max_step", max_step);
         utils::parser::queryWithParser(pp, "stop_time", stop_time);
-        pp.query("authors", m_authors);
+        utils::parser::queryWithParser(pp, "authors", m_authors);
     }
 
     {
         const ParmParse pp_amr("amr");
 
-        pp_amr.query("restart", restart_chkfile);
+        utils::parser::queryWithParser(pp_amr, "restart", restart_chkfile);
     }
 
     {
@@ -661,7 +661,7 @@ WarpX::ReadParameters ()
         for (const auto &diag : diags_names) {
             const ParmParse dd(diag);
             std::string format;
-            dd.query("format", format);
+            utils::parser::queryWithParser(dd, "format", format);
             if (format == "checkpoint") {
                 have_checkpoint_diagnostic = true;
                 break;

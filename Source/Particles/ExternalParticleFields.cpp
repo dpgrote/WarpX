@@ -55,7 +55,7 @@ ExternalParticleFields::ReadParameters () {
     };
 
     std::string e_init;
-    pp_particles.query("E_ext_particle_init_style", e_init);
+    utils::parser::queryWithParser(pp_particles, "E_ext_particle_init_style", e_init);
     if (e_init == "read_from_file") {
 
         // Read in E field names
@@ -113,7 +113,7 @@ ExternalParticleFields::ReadParameters () {
     }
 
     std::string b_init;
-    pp_particles.query("B_ext_particle_init_style", b_init);
+    utils::parser::queryWithParser(pp_particles, "B_ext_particle_init_style", b_init);
     if (b_init == "read_from_file") {
 
         // Read in B field names

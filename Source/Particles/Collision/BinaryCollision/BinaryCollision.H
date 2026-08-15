@@ -136,7 +136,7 @@ public:
             // operation, an outgoing particle of the first species type will
             // be created.
             std::string target_species;
-            pp_collision_name.query("ionization_target_species", target_species);
+            utils::parser::queryWithParser(pp_collision_name, "ionization_target_species", target_species);
             if (!target_species.empty()) {
                 if (m_species_names[0] == target_species) {
                     std::swap(m_species_names[0], m_species_names[1]);

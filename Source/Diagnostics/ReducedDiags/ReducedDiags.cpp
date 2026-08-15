@@ -43,7 +43,7 @@ m_rd_name{rd_name}
     // check if it is a restart run
     std::string restart_chkfile;
     const ParmParse pp_amr("amr");
-    pp_amr.query("restart", restart_chkfile);
+    utils::parser::queryWithParser(pp_amr, "restart", restart_chkfile);
     const bool IsNotRestart = restart_chkfile.empty();
 
     if (ParallelDescriptor::IOProcessor())
@@ -70,8 +70,8 @@ m_rd_name{rd_name}
     m_intervals = ablastr::utils::text::IntervalsParser(intervals_string_vec);
 
     // read separator
-    pp_rd.query("separator", m_sep);
-    pp_rd_name.query("separator", m_sep);
+    utils::parser::queryWithParser(pp_rd, "separator", m_sep);
+    utils::parser::queryWithParser(pp_rd_name, "separator", m_sep);
 
     // precision of data in the output file
     utils::parser::queryWithParser(pp_rd, "precision", m_precision);

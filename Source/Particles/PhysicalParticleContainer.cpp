@@ -124,7 +124,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     const ParmParse pp_species_name(species_name);
 
     std::string injection_style = "none";
-    pp_species_name.query("injection_style", injection_style);
+    utils::parser::queryWithParser(pp_species_name, "injection_style", injection_style);
     if (injection_style != "none") {
         // The base plasma injector, whose input parameters have no source prefix.
         // Only created if needed
@@ -153,7 +153,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     }
 
     std::string physical_species_s;
-    const bool species_is_specified = pp_species_name.query("species_type", physical_species_s);
+    const bool species_is_specified = utils::parser::queryWithParser(pp_species_name, "species_type", physical_species_s);
     if (species_is_specified) {
         const auto physical_species_from_string = species::from_string( physical_species_s );
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(physical_species_from_string,

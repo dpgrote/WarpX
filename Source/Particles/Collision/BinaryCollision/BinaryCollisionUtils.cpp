@@ -31,7 +31,7 @@ namespace BinaryCollisionUtils{
         const amrex::ParmParse pp_collision_name(collision_name);
         // For legacy, pairwisecoulomb is the default
         std::string type = "pairwisecoulomb";
-        pp_collision_name.query("type", type);
+        utils::parser::queryWithParser(pp_collision_name, "type", type);
         if (type == "pairwisecoulomb") {
             return CollisionType::PairwiseCoulomb;
         }
@@ -118,9 +118,9 @@ namespace BinaryCollisionUtils{
         // process name
         amrex::Vector<ScatteringProcess> scattering_processes;
         for (const auto& scattering_process : scattering_process_names) {
-            const std::string kw_cross_section = scattering_process + "_cross_section";
+            std::string const kw_cross_section = scattering_process + "_cross_section";
             std::string cross_section_file;
-            pp_collision_name.query(kw_cross_section, cross_section_file);
+            utils::parser::queryWithParser(pp_collision_name, kw_cross_section, cross_section_file);
 
             const auto process_type = ScatteringProcess::parseProcessType(scattering_process);
 
