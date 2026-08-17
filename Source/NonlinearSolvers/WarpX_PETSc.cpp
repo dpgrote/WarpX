@@ -246,7 +246,7 @@ void PETScSolver_impl::setOptions()
     if ((!pc_specified) && (m_pc_type == PreconditionerType::pc_petsc)) {
 
         auto parsestr = amrex::getEnumNameString(PreconditionerType::pc_petsc);
-        const amrex::ParmParse pp_pc(parsestr.c_str());
+        const amrex::ParmParse pp_pc(parsestr);
 
         std::string pctype = "asm"; // default
         {

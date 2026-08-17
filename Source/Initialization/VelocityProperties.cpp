@@ -35,7 +35,7 @@ namespace {
         amrex::ignore_unused(geom);
 
         std::string u_mean_dist_s = "constant";
-        utils::parser::queryWithParser(pp, source_name, dist_type_param.c_str(), u_mean_dist_s);
+        utils::parser::queryWithParser(pp, source_name, dist_type_param, u_mean_dist_s);
         if (u_mean_dist_s == "constant") {
             utils::parser::queryWithParser(pp, source_name, "ux_mean", vel.m_ux_mean);
             utils::parser::queryWithParser(pp, source_name, "uy_mean", vel.m_uy_mean);

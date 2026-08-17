@@ -131,11 +131,9 @@ namespace BinaryCollisionUtils{
             const std::string kw_energy = scattering_process + "_energy";
             if (process_type == ScatteringProcessType::EXCITATION ||
                 process_type == ScatteringProcessType::IONIZATION) {
-                utils::parser::getWithParser(
-                    pp_collision_name, kw_energy.c_str(), energy);
+                utils::parser::getWithParser(pp_collision_name, kw_energy, energy);
             } else if (process_type != ScatteringProcessType::ELASTIC) {
-                utils::parser::queryWithParser(
-                    pp_collision_name, kw_energy.c_str(), energy);
+                utils::parser::queryWithParser(pp_collision_name, kw_energy, energy);
             }
 
             // The angular behavior of a process is controlled by the per-process
