@@ -273,7 +273,7 @@ namespace utils::parser
             return queryWithParser(a_pp, str, val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            return queryWithParser(a_pp, grp_str.c_str(), val);
+            return queryWithParser(a_pp, grp_str, val);
         }
     }
 
@@ -290,7 +290,7 @@ namespace utils::parser
             return queryArrWithParser(a_pp, str, val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            return queryArrWithParser(a_pp, grp_str.c_str(), val);
+            return queryArrWithParser(a_pp, grp_str, val);
         }
     }
 
@@ -328,7 +328,7 @@ namespace utils::parser
             return queryArrWithParser(a_pp, str, val, start_ix, num_val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            return queryArrWithParser(a_pp, grp_str.c_str(), val, start_ix, num_val);
+            return queryArrWithParser(a_pp, grp_str, val, start_ix, num_val);
         }
     }
 
@@ -374,7 +374,7 @@ namespace utils::parser
             getWithParser(a_pp, str, val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            getWithParser(a_pp, grp_str.c_str(), val);
+            getWithParser(a_pp, grp_str, val);
         }
     }
 
@@ -390,7 +390,7 @@ namespace utils::parser
             getArrWithParser(a_pp, str, val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            getArrWithParser(a_pp, grp_str.c_str(), val);
+            getArrWithParser(a_pp, grp_str, val);
         }
     }
 
@@ -428,7 +428,7 @@ namespace utils::parser
             getArrWithParser(a_pp, str, val, start_ix, num_val);
         } else {
             // Otherwise, use the one with the group even if not found, in which case an exception may be raised.
-            getArrWithParser(a_pp, grp_str.c_str(), val, start_ix, num_val);
+            getArrWithParser(a_pp, grp_str, val, start_ix, num_val);
         }
     }
 
