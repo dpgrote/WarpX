@@ -48,7 +48,7 @@ MultiReducedDiags::MultiReducedDiags ()
 {
     // read reduced diags names
     const ParmParse pp_warpx("warpx");
-    m_plot_rd = pp_warpx.queryarr("reduced_diags_names", m_rd_names);
+    m_plot_rd = utils::parser::queryArrWithParser(pp_warpx, "reduced_diags_names", m_rd_names);
 
     // if names are not given, reduced diags will not be done
     if ( m_plot_rd == 0 ) { return; }

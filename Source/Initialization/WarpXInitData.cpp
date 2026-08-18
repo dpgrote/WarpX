@@ -385,7 +385,7 @@ WarpX::PostProcessBaseGrids (BoxArray& ba0) const
         Real wtot = 0; // total number of particles
 
         std::vector<std::string> species_names;
-        pp0.queryarr("particles.species_names", species_names);
+        utils::parser::queryArrWithParser(pp0, "particles.species_names", species_names);
         for (auto const& species : species_names) { // loop over species
             Real density_min = std::numeric_limits<amrex::Real>::epsilon();
             Real nppc = 0;

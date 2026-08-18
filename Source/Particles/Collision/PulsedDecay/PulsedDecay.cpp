@@ -37,7 +37,7 @@ PulsedDecay::PulsedDecay (std::string const& collision_name, MultiParticleContai
     const amrex::ParmParse pp_collision_name(collision_name);
 
     // Get the product species
-    pp_collision_name.queryarr("product_species", m_product_species);
+    utils::parser::queryArrWithParser(pp_collision_name, "product_species", m_product_species);
 
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE( m_product_species.size() == 2,
         "PulsedDecay: product_species size must be equal to two");

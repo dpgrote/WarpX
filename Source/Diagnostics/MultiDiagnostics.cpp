@@ -57,7 +57,7 @@ MultiDiagnostics::ReadParameters ()
     int enable_diags = 1;
     pp_diagnostics.query("enable", enable_diags);
     if (enable_diags == 1) {
-        pp_diagnostics.queryarr("diags_names", diags_names);
+        utils::parser::queryArrWithParser(pp_diagnostics, "diags_names", diags_names);
         ndiags = static_cast<int>(diags_names.size());
     }
 

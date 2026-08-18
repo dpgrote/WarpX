@@ -132,7 +132,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     }
 
     std::vector<std::string> injection_sources;
-    pp_species_name.queryarr("injection_sources", injection_sources);
+    utils::parser::queryArrWithParser(pp_species_name, "injection_sources", injection_sources);
     for (auto &source_name : injection_sources) {
         plasma_injectors.push_back(std::make_unique<PlasmaInjector>(species_id, species_name, amr_core->Geom(0),
                                                                     source_name));
@@ -304,7 +304,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
 #endif
 
     // User-defined integer attributes
-    pp_species_name.queryarr("addIntegerAttributes", m_user_int_attribs);
+    utils::parser::queryArrWithParser(pp_species_name, "addIntegerAttributes", m_user_int_attribs);
     const auto n_user_int_attribs = static_cast<int>(m_user_int_attribs.size());
     std::vector< std::string > str_int_attrib_function;
     str_int_attrib_function.resize(n_user_int_attribs);
@@ -319,7 +319,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     }
 
     // User-defined real attributes
-    pp_species_name.queryarr("addRealAttributes", m_user_real_attribs);
+    utils::parser::queryArrWithParser(pp_species_name, "addRealAttributes", m_user_real_attribs);
     const auto n_user_real_attribs = static_cast<int>(m_user_real_attribs.size());
     std::vector< std::string > str_real_attrib_function;
     str_real_attrib_function.resize(n_user_real_attribs);

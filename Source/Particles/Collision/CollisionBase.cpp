@@ -68,7 +68,7 @@ CollisionBase::BackwardCompatibility ()
     // The 'back' and 'forward' scattering process names are no longer supported: the
     // scattering angle is now an attribute of the process (see <process>_scattering_angle_model).
     amrex::Vector<std::string> scattering_process_names;
-    pp_collision_name.queryarr("scattering_processes", scattering_process_names);
+    utils::parser::queryArrWithParser(pp_collision_name, "scattering_processes", scattering_process_names);
     for (const auto& scattering_process : scattering_process_names) {
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
             scattering_process != "back" && scattering_process != "forward",

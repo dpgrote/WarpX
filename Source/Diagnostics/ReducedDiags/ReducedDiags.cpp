@@ -65,8 +65,8 @@ m_rd_name{rd_name}
 
     // read reduced diags intervals
     std::vector<std::string> intervals_string_vec = {"1"};
-    pp_rd.queryarr("intervals", intervals_string_vec);
-    pp_rd_name.queryarr("intervals", intervals_string_vec);
+    utils::parser::queryArrWithParser(pp_rd, "intervals", intervals_string_vec);
+    utils::parser::queryArrWithParser(pp_rd_name, "intervals", intervals_string_vec);
     m_intervals = ablastr::utils::text::IntervalsParser(intervals_string_vec);
 
     // read separator

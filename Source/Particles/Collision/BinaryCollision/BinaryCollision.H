@@ -107,7 +107,7 @@ public:
 
         const amrex::ParmParse pp_collisions("collisions");
         const amrex::ParmParse pp_collision_name(collision_name);
-        pp_collision_name.queryarr("product_species", m_product_species);
+        utils::parser::queryArrWithParser(pp_collision_name, "product_species", m_product_species);
 
         m_shuffling_method = ParticleShufflingMethod::Default;
         pp_collisions.query_enum_sloppy("shuffling_method", m_shuffling_method, "-_");

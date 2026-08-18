@@ -244,6 +244,31 @@ namespace utils::parser
      */
     int queryWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::string& val);
 
+    /** Similar to amrex::ParmParse::getarr, but also supports replacement of bracketed names, similar
+     * to how f-strings are processed in Python.
+     *
+     * amrex::ParmParse::getarr reads a name and a vector of values from the input file. This function does the
+     * same, and applies string replacements to names within curly braces with values from my_constants
+     * for each element of the vector.
+     *
+     * \param[in] a_pp amrex::ParmParse object
+     * \param[in] str name of the parameter to read
+     * \param[out] val where the vector of values queried and parsed is stored
+     */
+    void getArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<std::string>& val);
+
+    /** Similar to amrex::ParmParse::queryarr, but also supports replacement of bracketed names, similar
+     * to how f-strings are processed in Python.
+     *
+     * amrex::ParmParse::queryarr reads a name and a vector of values from the input file. This function does the
+     * same, and applies string replacements to names within curly braces with values from my_constants
+     * for each element of the vector.
+     *
+     * \param[in] a_pp amrex::ParmParse object
+     * \param[in] str name of the parameter to read
+     * \param[out] val where the vector of values queried and parsed is stored
+     */
+    int queryArrWithParser (const amrex::ParmParse& a_pp, std::string_view str, std::vector<std::string>& val);
 
     /** Similar to amrex::ParmParse::queryWithParser
      *

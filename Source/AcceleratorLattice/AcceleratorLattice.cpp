@@ -41,7 +41,7 @@ AcceleratorLattice::ReadLattice (std::string const & root_name, amrex::ParticleR
 {
     amrex::ParmParse pp_lattice(root_name);
     std::vector<std::string> lattice_elements;
-    pp_lattice.queryarr("elements", lattice_elements);
+    utils::parser::queryArrWithParser(pp_lattice, "elements", lattice_elements);
 
     if (!lattice_elements.empty()) {
         m_lattice_defined = true;

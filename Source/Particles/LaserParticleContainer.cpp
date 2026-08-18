@@ -139,7 +139,7 @@ LaserParticleContainer::LaserParticleContainer (AmrCore* amr_core, int ispecies,
     //Check if someone uses the obsolete syntax
     std::vector<std::string> backward_laser_names;
     const ParmParse pp_lasers("lasers");
-    pp_lasers.queryarr("names", backward_laser_names);
+    utils::parser::queryArrWithParser(pp_lasers, "names", backward_laser_names);
     for(const std::string& lasersiter : backward_laser_names){
         const ParmParse pp_name(lasersiter);
         std::string backward_profile;

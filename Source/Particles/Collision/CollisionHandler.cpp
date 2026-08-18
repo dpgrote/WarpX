@@ -35,7 +35,7 @@ CollisionHandler::CollisionHandler(MultiParticleContainer const * const mypc)
 
     // Read in collision input
     const amrex::ParmParse pp_collisions("collisions");
-    pp_collisions.queryarr("collision_names", collision_names);
+    utils::parser::queryArrWithParser(pp_collisions, "collision_names", collision_names);
 
     // Create instances based on the collision type
     auto const ncollisions = collision_names.size();

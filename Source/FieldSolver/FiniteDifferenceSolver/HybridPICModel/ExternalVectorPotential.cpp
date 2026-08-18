@@ -31,7 +31,7 @@ ExternalVectorPotential::ReadParameters ()
 
     pp_ext_A.query("do_diva_cleaning", m_do_clean_divA);
 
-    pp_ext_A.queryarr("fields", m_field_names);
+    utils::parser::queryArrWithParser(pp_ext_A, "fields", m_field_names);
 
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(!m_field_names.empty(),
         "No external field names defined in external_vector_potential.fields");

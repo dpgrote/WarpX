@@ -101,7 +101,7 @@ ParticleThermalizer::ParticleThermalizer():
       m_theta >= 0._rt,
       "particle_thermalizer: 'theta' must be non-negative");
 
-  pp.queryarr("species", m_species_names);
+  utils::parser::queryArrWithParser(pp, "species", m_species_names);
 
   m_defined = true;
 }

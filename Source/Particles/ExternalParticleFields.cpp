@@ -60,7 +60,7 @@ ExternalParticleFields::ReadParameters () {
 
         // Read in E field names
         std::vector<std::string> E_names;
-        pp_particles.queryarr("E_ext_particle_fields", E_names);
+        utils::parser::queryArrWithParser(pp_particles, "E_ext_particle_fields", E_names);
 
         // Initialize E fields by name
         for (const auto& n : E_names) {

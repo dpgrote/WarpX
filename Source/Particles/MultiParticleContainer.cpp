@@ -262,14 +262,14 @@ MultiParticleContainer::ReadParameters ()
 
 
         // particle species
-        pp_particles.queryarr("species_names", species_names);
+        utils::parser::queryArrWithParser(pp_particles, "species_names", species_names);
         auto const nspecies = species_names.size();
 
         if (nspecies > 0) {
             // Get species to deposit on main grid
             m_deposit_on_main_grid.resize(nspecies, false);
             std::vector<std::string> tmp;
-            pp_particles.queryarr("deposit_on_main_grid", tmp);
+            utils::parser::queryArrWithParser(pp_particles, "deposit_on_main_grid", tmp);
             for (auto const& name : tmp) {
                 auto it = std::find(species_names.begin(), species_names.end(), name);
                 WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
@@ -282,7 +282,7 @@ MultiParticleContainer::ReadParameters ()
 
             m_gather_from_main_grid.resize(nspecies, false);
             std::vector<std::string> tmp_gather;
-            pp_particles.queryarr("gather_from_main_grid", tmp_gather);
+            utils::parser::queryArrWithParser(pp_particles, "gather_from_main_grid", tmp_gather);
             for (auto const& name : tmp_gather) {
                 auto it = std::find(species_names.begin(), species_names.end(), name);
                 WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
@@ -297,7 +297,7 @@ MultiParticleContainer::ReadParameters ()
 
             // Get rigid-injected species
             std::vector<std::string> rigid_injected_species;
-            pp_particles.queryarr("rigid_injected_species", rigid_injected_species);
+            utils::parser::queryArrWithParser(pp_particles, "rigid_injected_species", rigid_injected_species);
             if (!rigid_injected_species.empty()) {
                 for (auto const& name : rigid_injected_species) {
                     auto it = std::find(species_names.begin(), species_names.end(), name);
@@ -312,7 +312,7 @@ MultiParticleContainer::ReadParameters ()
 
             // Get photon species
             std::vector<std::string> photon_species;
-            pp_particles.queryarr("photon_species", photon_species);
+            utils::parser::queryArrWithParser(pp_particles, "photon_species", photon_species);
             const auto spec_size = static_cast<int>(species_names.size());
             for (int spec_index = 0; spec_index < spec_size; ++spec_index){
 
@@ -349,12 +349,12 @@ MultiParticleContainer::ReadParameters ()
 #endif
 
         const ParmParse pp_lasers("lasers");
-        pp_lasers.queryarr("names", lasers_names);
+        utils::parser::queryArrWithParser(pp_lasers, "names", lasers_names);
         auto const nlasers = lasers_names.size();
         // Get lasers to deposit on main grid
         m_laser_deposit_on_main_grid.resize(nlasers, false);
         std::vector<std::string> tmp;
-        pp_lasers.queryarr("deposit_on_main_grid", tmp);
+        utils::parser::queryArrWithParser(pp_lasers, "deposit_on_main_grid", tmp);
         for (auto const& name : tmp) {
             auto it = std::find(lasers_names.begin(), lasers_names.end(), name);
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(

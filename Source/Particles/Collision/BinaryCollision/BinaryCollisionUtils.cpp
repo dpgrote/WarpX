@@ -112,7 +112,7 @@ namespace BinaryCollisionUtils{
         const amrex::ParmParse pp_collision_name(collision_name);
 
         amrex::Vector<std::string> scattering_process_names;
-        pp_collision_name.queryarr("scattering_processes", scattering_process_names);
+        utils::parser::queryArrWithParser(pp_collision_name, "scattering_processes", scattering_process_names);
 
         // create a vector of ScatteringProcess objects from each scattering
         // process name
