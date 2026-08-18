@@ -119,7 +119,7 @@ FullDiagnostics::ReadParameters ()
         m_format == "sensei" || m_format == "catalyst",
         "<diag>.format must be plotfile or openpmd or checkpoint or ascent or catalyst or sensei");
     std::vector<std::string> intervals_string_vec = {"0"};
-    pp_diag_name.getarr("intervals", intervals_string_vec);
+    utils::parser::getArrWithParser(pp_diag_name, "intervals", intervals_string_vec);
     m_intervals = ablastr::utils::text::IntervalsParser(intervals_string_vec);
     const bool plot_raw_fields_specified = pp_diag_name.query("plot_raw_fields", m_plot_raw_fields);
     const bool plot_raw_fields_guards_specified = pp_diag_name.query("plot_raw_fields_guards", m_plot_raw_fields_guards);

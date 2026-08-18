@@ -21,7 +21,7 @@ CollisionBase::CollisionBase (const std::string& collision_name) :
 
     // read collision species
     const amrex::ParmParse pp_collision_name(collision_name);
-    pp_collision_name.getarr("species", m_species_names);
+    utils::parser::getArrWithParser(pp_collision_name, "species", m_species_names);
 
     // time step control: ndt_supercycle or ndt_subcycle (mutually exclusive)
     int ndt_supercycle = 0;

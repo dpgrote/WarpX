@@ -48,7 +48,7 @@ namespace BinaryCollisionUtils{
         else if (type == "linear_breit_wheeler") {
             amrex::Vector<std::string> species_name;
             // Check that incoming species are photons
-            pp_collision_name.getarr("species", species_name);
+            utils::parser::getArrWithParser(pp_collision_name, "species", species_name);
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                 species_name.size() == 2u,
                 "Linear Breit-Wheeler collisions must involve exactly two species");
@@ -59,7 +59,7 @@ namespace BinaryCollisionUtils{
                 "Species involved in linear Breit-Wheeler collisions must be of type photon.");
             // Check that product species are electron and positron
             amrex::Vector<std::string> product_species_name;
-            pp_collision_name.getarr("product_species", product_species_name);
+            utils::parser::getArrWithParser(pp_collision_name, "product_species", product_species_name);
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                 product_species_name.size() == 2u,
                 "Linear Breit-Wheeler collisions must contain exactly two product species");
@@ -75,7 +75,7 @@ namespace BinaryCollisionUtils{
         else if (type == "linear_compton") {
             amrex::Vector<std::string> species_name;
             // Check that the first incoming species is a photon and the second is an electron/positron
-            pp_collision_name.getarr("species", species_name);
+            utils::parser::getArrWithParser(pp_collision_name, "species", species_name);
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                 species_name.size() == 2u,
                 "Linear Compton collisions must involve exactly two species");
@@ -87,7 +87,7 @@ namespace BinaryCollisionUtils{
                 "The second species in linear Compton collisions must be an electron or positron");
             // Check that first product species is photon and second is electron/positron
             amrex::Vector<std::string> product_species_name;
-            pp_collision_name.getarr("product_species", product_species_name);
+            utils::parser::getArrWithParser(pp_collision_name, "product_species", product_species_name);
             WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
                 product_species_name.size() == 2u,
                 "Linear Compton collisions must contain exactly two product species");
@@ -162,7 +162,7 @@ namespace BinaryCollisionUtils{
 
         const amrex::ParmParse pp_collision_name(collision_name);
         amrex::Vector<std::string> species_names;
-        pp_collision_name.getarr("species", species_names);
+        utils::parser::getArrWithParser(pp_collision_name, "species", species_names);
         auto& species1 = mypc->GetParticleContainerFromName(species_names[0]);
         auto& species2 = mypc->GetParticleContainerFromName(species_names[1]);
 
@@ -171,7 +171,7 @@ namespace BinaryCollisionUtils{
         amrex::ParticleReal mass_after = 0.0_prt;
 
         amrex::Vector<std::string> product_species_name;
-        pp_collision_name.getarr("product_species", product_species_name);
+        utils::parser::getArrWithParser(pp_collision_name, "product_species", product_species_name);
 
         NuclearFusionType fusion_type = NuclearFusionType::Undefined;
         if ((species1.AmIA<PhysicalSpecies::hydrogen2>() && species2.AmIA<PhysicalSpecies::hydrogen3>())

@@ -50,7 +50,7 @@ SplitAndScatterFunc::SplitAndScatterFunc (const std::string& collision_name,
 
             // Check that product species have been specified
             amrex::Vector<std::string> product_species;
-            pp_collision_name.getarr("product_species", product_species);
+            utils::parser::getArrWithParser(pp_collision_name, "product_species", product_species);
             // TODO: check number of product species
 
             // For ionization:
