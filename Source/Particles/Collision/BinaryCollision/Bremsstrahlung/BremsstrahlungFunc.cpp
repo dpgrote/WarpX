@@ -6,7 +6,6 @@
  */
 
 #include "BremsstrahlungFunc.H"
-#include "Utils/Parser/ParserUtils.H"
 
 #include <AMReX_REAL.H>
 #include <AMReX_Vector.H>
@@ -23,7 +22,7 @@ BremsstrahlungFunc::BremsstrahlungFunc (std::string const& collision_name, Multi
 
     // Read in the number of electrons on the target
     int Z;
-    utils::parser::getWithParser(pp_collision_name, "Z", Z);
+    pp_collision_name.get("Z", Z);
 
     std::string product_species_name;
     utils::parser::getWithParser(pp_collision_name, "product_species", product_species_name);
