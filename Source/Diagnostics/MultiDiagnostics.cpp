@@ -4,6 +4,7 @@
 #include "Diagnostics/FullDiagnostics.H"
 #include "Diagnostics/BoundaryScrapingDiagnostics.H"
 #include "Utils/TextMsg.H"
+#include "Utils/Parser/ParserUtils.H"
 #include <ablastr/warn_manager/WarnManager.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX.H>
@@ -64,7 +65,7 @@ MultiDiagnostics::ReadParameters ()
     for (int i=0; i<ndiags; i++){
         const ParmParse pp_diag_name(diags_names[i]);
         std::string diag_type_str;
-        pp_diag_name.get("diag_type", diag_type_str);
+        utils::parser::getWithParser(pp_diag_name, "diag_type", diag_type_str);
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
             diag_type_str == "Full" || diag_type_str == "TimeAveraged" || diag_type_str == "BackTransformed" || diag_type_str == "BoundaryScraping",
             "<diag>.diag_type must be Full, TimeAveraged, BackTransformed or BoundaryScraping");

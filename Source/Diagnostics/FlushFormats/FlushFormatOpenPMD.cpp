@@ -55,7 +55,7 @@ FlushFormatOpenPMD::FlushFormatOpenPMD (const std::string& diag_name)
     }
 
     std::string diag_type_str;
-    pp_diag_name.get("diag_type", diag_type_str);
+    utils::parser::getWithParser(pp_diag_name, "diag_type", diag_type_str);
     if (diag_type_str == "BackTransformed")
     {
         if ( ( openPMD::IterationEncoding::fileBased != encoding ) &&
@@ -93,7 +93,7 @@ FlushFormatOpenPMD::FlushFormatOpenPMD (const std::string& diag_name)
     auto const prefix_len = prefix.size() + 1;
     for (std::string k : entr) {
         std::string v;
-        pp.get(k, v);
+        utils::parser::getWithParser(pp, k, v);
         k.erase(0, prefix_len);
         operator_parameters.insert({k, v});
     }
@@ -109,7 +109,7 @@ FlushFormatOpenPMD::FlushFormatOpenPMD (const std::string& diag_name)
     auto const prefixlen = engine_prefix.size() + 1;
     for (std::string k : eng_entr) {
         std::string v;
-        ppe.get(k, v);
+        utils::parser::getWithParser(ppe, k, v);
         k.erase(0, prefixlen);
         engine_parameters.insert({k, v});
     }

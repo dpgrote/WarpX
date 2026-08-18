@@ -69,7 +69,7 @@ ParticleHistogram2D::ParticleHistogram2D (const std::string& rd_name)
 
     // read species
     std::string selected_species_name;
-    pp_rd_name.get("species",selected_species_name);
+    utils::parser::getWithParser(pp_rd_name, "species",selected_species_name);
 
     // read bin parameters
     utils::parser::getWithParser(pp_rd_name, "bin_number_abs",m_bin_num_abs);

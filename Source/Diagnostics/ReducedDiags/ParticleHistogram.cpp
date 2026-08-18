@@ -57,7 +57,7 @@ ParticleHistogram::ParticleHistogram (const std::string& rd_name)
 
     // read species
     std::string selected_species_name;
-    pp_rd_name.get("species",selected_species_name);
+    utils::parser::getWithParser(pp_rd_name, "species",selected_species_name);
 
     // read bin parameters
     int bin_num = 0;

@@ -90,7 +90,7 @@ LaserParticleContainer::LaserParticleContainer (AmrCore* amr_core, int ispecies,
 
     // Parse the type of laser profile and set the corresponding flag `profile`
     std::string laser_type_s;
-    pp_laser_name.get("profile", laser_type_s);
+    utils::parser::getWithParser(pp_laser_name, "profile", laser_type_s);
     std::transform(laser_type_s.begin(), laser_type_s.end(), laser_type_s.begin(), ::tolower);
 
     // Parse the properties of the antenna

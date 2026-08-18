@@ -69,7 +69,7 @@ PulsedDecay::PulsedDecay (std::string const& collision_name, MultiParticleContai
         "PulsedDecay: total mass of product species must match the parent species mass");
 
     // Get the fixed product particle weight
-    pp_collision_name.get("fixed_product_weight", m_fixed_product_weight);
+    utils::parser::getWithParser(pp_collision_name, "fixed_product_weight", m_fixed_product_weight);
 
     // Parse the direction-dependent temperature for product species A
     amrex::Vector<amrex::ParticleReal> TA_tmp;

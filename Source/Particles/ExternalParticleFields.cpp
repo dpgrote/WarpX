@@ -31,7 +31,7 @@ ExternalParticleFields::ReadParameters () {
         ParticleFieldMetaData md;
 
         // if the name is specified, so must be the path
-        pp_particles.get(fname + ".read_fields_from_path", md.path);
+        utils::parser::getWithParser(pp_particles, fname + ".read_fields_from_path", md.path);
 
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
             !md.path.empty(),
@@ -72,7 +72,7 @@ ExternalParticleFields::ReadParameters () {
 
             // no E field names provided but read_from_file requested, force to
             // read path
-            pp_particles.get("read_fields_from_path", single_field_path);
+            utils::parser::getWithParser(pp_particles, "read_fields_from_path", single_field_path);
 
             // initialize single E field meta data
             ParticleFieldMetaData md;
@@ -130,7 +130,7 @@ ExternalParticleFields::ReadParameters () {
 
             // no B field names provided but read_from_file requested, force to
             // read path
-            pp_particles.get("read_fields_from_path", single_field_path);
+            utils::parser::getWithParser(pp_particles, "read_fields_from_path", single_field_path);
 
             // initialize single B field meta data
 

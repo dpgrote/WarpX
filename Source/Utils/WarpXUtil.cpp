@@ -52,7 +52,7 @@ void ReadBoostedFrameParameters(Real& gamma_boost, Real& beta_boost,
     if( gamma_boost > 1. ) {
         beta_boost = std::sqrt(1._rt-1._rt/std::pow(gamma_boost,2._rt));
         std::string s;
-        pp_warpx.get("boost_direction", s);
+        utils::parser::getWithParser(pp_warpx, "boost_direction", s);
         if (s == "x" || s == "X") {
             boost_direction[0] = 1;
         }
@@ -258,7 +258,7 @@ void CheckGriddingForRZSpectral ()
 
     ParmParse pp_amr("amr");
 
-    pp_amr.get("max_level",max_level);
+    utils::parser::getWithParser(pp_amr, "max_level",max_level);
     pp_amr.getarr("n_cell", n_cell, 0, AMREX_SPACEDIM);
 
     Vector<int> blocking_factor_x(max_level+1);

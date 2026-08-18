@@ -60,7 +60,7 @@ Diagnostics::BaseReadParameters ()
 
     const amrex::ParmParse pp_geometry("geometry");
     std::string dims;
-    pp_geometry.get("dims", dims);
+    utils::parser::getWithParser(pp_geometry, "dims", dims);
 
     // use warpx.verbose as global diagnostic verbosity level
     const amrex::ParmParse pp_warpx("warpx");

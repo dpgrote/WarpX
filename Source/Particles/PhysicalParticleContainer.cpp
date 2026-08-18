@@ -284,7 +284,7 @@ PhysicalParticleContainer::PhysicalParticleContainer (AmrCore* amr_core, int isp
     }
 
     if(m_do_qed_quantum_sync){
-        pp_species_name.get("qed_quantum_sync_phot_product_species",
+        utils::parser::getWithParser(pp_species_name, "qed_quantum_sync_phot_product_species",
             m_qed_quantum_sync_phot_product_name);
     }
 
@@ -1617,8 +1617,8 @@ PhysicalParticleContainer::InitIonizationModule ()
 
     utils::parser::queryWithParser(
         pp_species_name, "ionization_initial_level", ionization_initial_level);
-    pp_species_name.get("ionization_product_species", ionization_product_name);
-    pp_species_name.get("physical_element", physical_element);
+    utils::parser::getWithParser(pp_species_name, "ionization_product_species", ionization_product_name);
+    utils::parser::getWithParser(pp_species_name, "physical_element", physical_element);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
         physical_element == "H" || !do_adk_correction,
         "Correction to ADK by Zhang et al., PRA 90, 043410 (2014) only works with Hydrogen");

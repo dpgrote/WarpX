@@ -372,8 +372,8 @@ MultiParticleContainer::ReadParameters ()
 
         if (m_do_qed_schwinger) {
             const ParmParse pp_qed_schwinger("qed_schwinger");
-            pp_qed_schwinger.get("ele_product_species", m_qed_schwinger_ele_product_name);
-            pp_qed_schwinger.get("pos_product_species", m_qed_schwinger_pos_product_name);
+            utils::parser::getWithParser(pp_qed_schwinger, "ele_product_species", m_qed_schwinger_ele_product_name);
+            utils::parser::getWithParser(pp_qed_schwinger, "pos_product_species", m_qed_schwinger_pos_product_name);
 #if defined(WARPX_DIM_XZ) || defined(WARPX_DIM_RZ)
             utils::parser::getWithParser(
                 pp_qed_schwinger, "y_size",m_qed_schwinger_y_size);

@@ -11,6 +11,7 @@
 #include "LatticeElements/Drift.H"
 #include "LatticeElements/HardEdgedQuadrupole.H"
 #include "LatticeElements/HardEdgedPlasmaLens.H"
+#include "Utils/Parser/ParserUtils.H"
 
 #include <AMReX_REAL.H>
 
@@ -58,7 +59,7 @@ AcceleratorLattice::ReadLattice (std::string const & root_name, amrex::ParticleR
         // Check the element type
         amrex::ParmParse pp_element(element_name);
         std::string element_type;
-        pp_element.get("type", element_type);
+        utils::parser::getWithParser(pp_element, "type", element_type);
 
         // Initialize the corresponding element according to its type
         if (element_type == "drift") {

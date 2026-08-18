@@ -130,7 +130,7 @@ FullDiagnostics::ReadParameters ()
         /** Whether the diagnostics are averaging data over time or not
          * Valid options are "fixed_start" and "dynamic_start".
          */
-        pp_diag_name.get("time_average_mode", m_time_average_mode_str);
+        utils::parser::getWithParser(pp_diag_name, "time_average_mode", m_time_average_mode_str);
 
         const amrex::ParmParse pp_warpx("warpx");
         std::vector<std::string> dt_interval_vec = {"-1"};
@@ -162,7 +162,7 @@ FullDiagnostics::ReadParameters ()
 
         if (m_time_average_mode == TimeAverageType::Static) {
             // This fails if users do not specify a start.
-            pp_diag_name.get("average_start_step", m_average_start_step);
+            utils::parser::getWithParser(pp_diag_name, "average_start_step", m_average_start_step);
             if (m_average_start_step == 0) {
                 WARPX_ABORT_WITH_MESSAGE(
                     "Static-start time-averaged diagnostic " + m_diag_name + " requires a positive (non-zero) value "
