@@ -207,7 +207,7 @@ public:
     // DiagnosticParticleData (see above) on this tile.
     using DiagnosticParticles = amrex::Vector<std::map<std::pair<int, int>, DiagnosticParticleData> >;
 
-    WarpXParticleContainer (amrex::AmrCore* amr_core, int ispecies);
+    WarpXParticleContainer (amrex::AmrCore* amr_core, int ispecies, const std::string& name);
     ~WarpXParticleContainer() override = default;
 
     // Move and copy operations
@@ -412,14 +412,15 @@ public:
         [[maybe_unused]]const warpx::particles::deposition::TemperatureDepositionPass pass)
     {}
 
-    void DepositTotalNGPTemperature (amrex::MultiFab* temperature, int lev);
-    std::unique_ptr<amrex::MultiFab> GetAverageNGPTemperature (int lev);
+    void DepositTotalNGPTemperature (int lev);
+    void CalculateNuei(amrex::MultiFab & species_nuei,
+                       WarpXParticleContainer const & electron_species, int lev);
+    std::unique_ptr<amrex::MultiFab> GetDebyeLength (int lev);
 
     void DepositNumberDensity (amrex::MultiFab* number_density, int lev);
     std::unique_ptr<amrex::MultiFab> GetNumberDensity (int lev);
 
     std::unique_ptr<amrex::MultiFab> GetPlasmaFrequency (int lev);
-    std::unique_ptr<amrex::MultiFab> GetDebyeLength (int lev);
 
     void DepositMassMatrices (WarpXParIter& pti,
                         const RealVector& wp,
@@ -478,7 +479,7 @@ public:
 
     std::array<amrex::ParticleReal, 3> meanParticleVelocity(bool local = false);
 
-    amrex::ParticleReal maxParticleVelocity(bool local = false);
+    amrex::ParticleReal maxParticleDtInv(bool local = false);
 
     /**
      * \brief Map the momentum of the particles to and from the curvilinear frame.
@@ -548,6 +549,7 @@ public:
     void ApplyBoundaryConditions ();
 
     bool do_splitting = false;
+
     int do_not_deposit = 0;
     bool initialize_self_fields = false;
     amrex::Real self_fields_required_precision = amrex::Real(1.e-11);
@@ -580,6 +582,14 @@ public:
     amrex::ParticleReal getCharge () const {return m_charge;}
 
     amrex::ParticleReal getMass () const {return m_mass;}
+
+    /** Thermal velocity (normalized by c) used by thermal particle boundaries
+     *  for this species, parsed from ``boundary.\<species_name\>.u_th``.
+     */
+    amrex::ParticleReal getBoundaryThermalVelocity () const
+    {
+        return static_cast<amrex::ParticleReal>(m_boundary_conditions.data.m_uth);
+    }
 
     int DoFieldIonization() const { return do_field_ionization; }
 
@@ -648,8 +658,11 @@ public:
         return (pos != int_names.end());
     }
 
+    std::string const & getName() { return species_name; }
+
 protected:
     int species_id;
+    std::string species_name;
 
     amrex::ParticleReal m_charge;
     amrex::ParticleReal m_mass;
