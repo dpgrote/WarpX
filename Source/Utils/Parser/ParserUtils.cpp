@@ -86,6 +86,7 @@ void utils::parser::Store_parserString(
         stored_string += s;
     }
     f.clear();
+    ::processStringConstants(stored_string, query_string);
 }
 
 void utils::parser::Store_parserString(
