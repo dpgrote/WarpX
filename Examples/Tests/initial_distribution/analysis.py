@@ -21,7 +21,6 @@
 # 12 denotes maxwellian (from openPMD file mean/std) w/ spatially-varying mean and thermal spread
 # The distribution is obtained through reduced diagnostic ParticleHistogram.
 
-import sys
 
 import numpy as np
 import scipy.constants as scc
