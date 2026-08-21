@@ -127,7 +127,7 @@ print("Maxwell-Juttner distribution difference:", f3_error)
 assert f3_error < tolerance
 
 # check temperature diagnostic
-Te_maxwell_juttner, info = ts.get_field("Te_maxwell_juttner", iteration=0)
+Te_maxwell_juttner, info = ts.get_field("T_maxwell_juttner", iteration=0)
 Te_analytic = theta * scc.m_e * scc.c**2 / scc.e
 Te_error_max = (np.abs(Te_maxwell_juttner - Te_analytic) / Te_analytic).max()
 
