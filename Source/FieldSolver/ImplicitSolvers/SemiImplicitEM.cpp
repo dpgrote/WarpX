@@ -127,7 +127,7 @@ void SemiImplicitEM::FinishStep (const amrex::Real start_time, const int a_step)
     const amrex::Real new_time = start_time + m_dt;
 
     // Advance particles from time n+1/2 to time n+1
-    m_WarpX->FinishImplicitParticleUpdate(new_time);
+    FinishImplicitParticleUpdate(new_time, a_step);
 
     // Advance Eg from time n+1/2 to time n+1
     // Eg^{n+1} = 2.0*Eg^{n+1/2} - Eg^n
