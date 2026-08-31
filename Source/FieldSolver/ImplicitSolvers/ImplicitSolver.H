@@ -299,7 +299,7 @@ protected:
     void PreRHSOp ( amrex::Real  a_cur_time,
                     int          a_nl_iter,
                     bool         a_from_jacobian,
-                    amrex::Real  a_dt_scale = 1.);
+                    amrex::Real  a_dt_scale = amrex::Real(1.));
 
     /**
      * \brief Communicate Mass Matrices used for PC and apply boundary conditions
