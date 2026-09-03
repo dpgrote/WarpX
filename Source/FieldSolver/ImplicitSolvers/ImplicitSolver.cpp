@@ -273,18 +273,9 @@ void ImplicitSolver::CumulateJ ()
 
 void ImplicitSolver::SaveE ()
 {
-
     // Copy Efield_fp to E0.
-
     using warpx::fields::FieldType;
-    for (int lev = 0; lev < m_num_amr_levels; ++lev) {
-        const ablastr::fields::VectorField E = m_WarpX->m_fields.get_alldirs(FieldType::Efield_fp, lev);
-        ablastr::fields::VectorField E0 = m_WarpX->m_fields.get_alldirs(FieldType::Efield_fp_save, lev);
-        amrex::MultiFab::Copy(*E0[0], *E[0], 0, 0, E[0]->nComp(), E[0]->nGrowVect());
-        amrex::MultiFab::Copy(*E0[1], *E[1], 0, 0, E[1]->nComp(), E[1]->nGrowVect());
-        amrex::MultiFab::Copy(*E0[2], *E[2], 0, 0, E[2]->nComp(), E[2]->nGrowVect());
-    }
-
+    CopyVectorField(FieldType::Efield_fp_save, FieldType::Efield_fp);
 }
 
 void ImplicitSolver::ApplyMassMatrices (
@@ -737,15 +728,9 @@ void ImplicitSolver::CopyVectorField (warpx::fields::FieldType dst, warpx::field
 
 void ImplicitSolver::SaveEoldMultifab ()
 {
-    using warpx::fields::FieldType;
     // E_old multifab is needed for diagnostics and saving at checkpoints
-    for (int lev = 0; lev < m_num_amr_levels; ++lev) {
-        const ablastr::fields::VectorField Efp = m_WarpX->m_fields.get_alldirs(FieldType::Efield_fp, lev);
-        ablastr::fields::VectorField E_old = m_WarpX->m_fields.get_alldirs(FieldType::E_old, lev);
-        for (int n = 0; n < 3; ++n) {
-            amrex::MultiFab::Copy(*E_old[n], *Efp[n], 0, 0, E_old[n]->nComp(), E_old[n]->nGrowVect());
-        }
-    }
+    using warpx::fields::FieldType;
+    CopyVectorField(FieldType::E_old, FieldType::Efield_fp);
 }
 
 void ImplicitSolver::InitializeMassMatrices ()
