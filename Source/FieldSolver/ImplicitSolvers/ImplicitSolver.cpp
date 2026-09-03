@@ -223,8 +223,8 @@ int ImplicitSolver::OneStep (const amrex::Real  start_time,
             } else {
                 // Try again, dividing the step size in half
                 ablastr::warn_manager::WMRecordWarning("ThetaImplicitEM",
-                    "Notice: solver failed at step " + std::to_string(a_step) + ". " +
-                    "Attempting subcycling step " + std::to_string(isubstep) +
+                    "Notice: solver failed at step " + std::to_string(a_step+1) +
+                    "during subcycling step " + std::to_string(isubstep+1) +
                     " of " + std::to_string(m_nsubsteps) +
                     " substeps, with exit status " + std::to_string(exit_status) + ".",
                     ablastr::warn_manager::WarnPriority::low);
