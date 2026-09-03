@@ -425,6 +425,7 @@ public:
      * \brief Call the routine to compute the Poynting flux at the mid step time level
      *
      * \param[in] step current time step
+     * \param[in] dt time step size
      */
     void ComputeDiagsMidStep (int step, amrex::Real dt) final;
 
@@ -432,6 +433,8 @@ public:
      * \brief This function computes the electromagnetic Poynting flux,
      * obtained by integrating the electromagnetic Poynting flux density g = eps0 * (E x B)
      * on the surface of the domain.
+     *
+     * \param[in] dt time step size, used in the integration
      */
     void ComputePoyntingFlux (amrex::Real dt);
 

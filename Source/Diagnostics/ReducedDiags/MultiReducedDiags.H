@@ -50,7 +50,8 @@ public:
     void ComputeDiags (int step);
 
     /** Loop over all ReducedDiags and call their ComputeDiagsMidStep
-     *  @param[in] step current iteration time */
+     *  @param[in] step current iteration time
+     *  @param[in] dt time step size */
     void ComputeDiagsMidStep (int step, amrex::Real dt);
 
     /** Loop over all ReducedDiags and call their WriteToFile

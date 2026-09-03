@@ -87,6 +87,7 @@ public:
      * function to compute diags at the mid step time level
      *
      * @param[in] step current time step
+     * @param[in] dt time step size
      */
     virtual void ComputeDiagsMidStep (int step, amrex::Real dt);
 
