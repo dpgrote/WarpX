@@ -122,7 +122,7 @@ void SemiImplicitEM::FinishStep (const amrex::Real start_time, const int a_step)
 
     // Update WarpX owned Efield_fp to t_{n+1/2}
     m_WarpX->SetElectricFieldAndApplyBCs(m_E, half_time);
-    m_WarpX->reduced_diags->ComputeDiagsMidStep(a_step);
+    m_WarpX->reduced_diags->ComputeDiagsMidStep(a_step, m_dt);
 
     const amrex::Real new_time = start_time + m_dt;
 

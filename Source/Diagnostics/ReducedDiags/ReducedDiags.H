@@ -88,7 +88,7 @@ public:
      *
      * @param[in] step current time step
      */
-    virtual void ComputeDiagsMidStep (int step);
+    virtual void ComputeDiagsMidStep (int step, amrex::Real dt);
 
     /**
      * write to file function
