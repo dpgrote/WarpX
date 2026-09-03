@@ -373,7 +373,7 @@ void NewtonSolver<Vec,Ops>::Solve (Vec&         a_U,
             break;
         }
 
-        if (iter >= m_maxits) {
+        if (iter == m_maxits) {
             if (this->m_verbose) {
                 amrex::Print() << "Newton: exiting at iter = " << std::setw(3) << iter
                                << ". Maximum iteration reached: iter = " << m_maxits << "\n";
@@ -411,7 +411,9 @@ void NewtonSolver<Vec,Ops>::Solve (Vec&         a_U,
     m_total_iters += iter;
     m_total_linsol_iters += linear_solver_iters;
 
-    if (norm_rel > m_rtol && norm_abs > m_atol) {
+    // Note that the failure warning is skipped in the case when
+    // m_rtol == 0 to allow a fixed number of iterations without a flood of warning.
+    if (norm_rel > m_rtol and norm_abs > m_atol and m_rtol > 0.) {
         std::stringstream convergenceMsg;
         convergenceMsg << "Newton solver failed to converge after " << iter <<
                           " iterations. Relative norm is " << norm_rel <<
