@@ -234,7 +234,7 @@ WarpX::Evolve (int numsteps)
         ExecutePythonCallback("particleinjection");
 
         // perform collisions and advance fields and particles by one time step
-        OneStep(cur_time, dt[0], step);
+        OneStep(cur_time, dt[0], step, verbose_step);
 
         // Resample particles
         // +1 is necessary here because value of step seen by user (first step is 1) is different than
@@ -405,7 +405,8 @@ WarpX::Evolve (int numsteps)
 void WarpX::OneStep (
     amrex::Real a_cur_time,
     amrex::Real a_dt,
-    int a_step
+    int a_step,
+    bool verbose_step
 )
 {
     ABLASTR_PROFILE("WarpX::OneStep()");
@@ -413,7 +414,7 @@ void WarpX::OneStep (
     // implicit solver
     if (m_implicit_solver) {
         // advance fields and particles by one time step
-        const int exit_status = m_implicit_solver->OneStep(a_cur_time, a_dt, a_step);
+        const int exit_status = m_implicit_solver->OneStep(a_cur_time, a_dt, a_step, verbose_step);
         if (exit_status < 0) {
             std::stringstream solverMsg;
             solverMsg << "ImplicitSolver::OneStep() failed at step = " << a_step
