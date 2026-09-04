@@ -25,7 +25,8 @@ void LabFrameExplicitES::ComputeSpaceChargeField (
     ablastr::fields::MultiFabRegister& fields,
     MultiParticleContainer& mpc,
     MultiFluidContainer* mfl,
-    int max_level)
+    int max_level,
+    bool verbose_step)
 {
     using ablastr::fields::MultiLevelScalarField;
     using ablastr::fields::MultiLevelVectorField;
@@ -77,9 +78,10 @@ void LabFrameExplicitES::ComputeSpaceChargeField (
         computePhiTriDiagonal(rho_fp, phi_fp);
 #else
         // Use the AMREX MLMG or the FFT (IGF) solver otherwise
+        int const verbosity = verbose_step ? self_fields_verbosity : 0;
         computePhi(rho_fp, phi_fp, beta, self_fields_required_precision,
                    self_fields_absolute_tolerance, self_fields_max_iters,
-                   self_fields_verbosity, is_igf_2d_slices, Efield_fp);
+                   verbosity, is_igf_2d_slices, Efield_fp);
 #endif
 
     }

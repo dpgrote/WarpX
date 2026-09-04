@@ -304,7 +304,7 @@ WarpX::Evolve (int numsteps)
             // loop (i.e. immediately after a `Redistribute` and before particle
             // positions are next pushed) so that the particles do not deposit out of bounds
             // and so that the fields are at the correct time in the output.
-            ComputeSpaceChargeField( reset_E_field, reset_B_field );
+            ComputeSpaceChargeField(reset_E_field, reset_B_field, verbose_step);
             if (electrostatic_solver_id == ElectrostaticSolverAlgo::LabFrameElectroMagnetostatic) {
                 // Call Magnetostatic Solver to solve for the vector potential A and compute the
                 // B field.  Time varying A contribution to E field is neglected.
