@@ -75,6 +75,7 @@ void LabFrameExplicitES::ComputeSpaceChargeField (
 
 #if defined(WARPX_DIM_1D_Z)
         // Use the tridiag solver with 1D
+        amrex::ignore_unused(verbose_step);
         computePhiTriDiagonal(rho_fp, phi_fp);
 #else
         // Use the AMREX MLMG or the FFT (IGF) solver otherwise
