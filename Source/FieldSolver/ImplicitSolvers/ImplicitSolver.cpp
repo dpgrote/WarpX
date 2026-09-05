@@ -218,10 +218,12 @@ int ImplicitSolver::OneStep (const amrex::Real  start_time,
             exit_status = DoSolve(substep_start_time, a_step);
 
             if (exit_status >= 0) {
+                // The solve succeeded. Increment the step number and continue to the next.
                 isubstep += 1;
                 break;
             } else {
-                // Try again, dividing the step size in half
+                // Try again, dividing the step size in half.
+                // This will restart from the end of the last substep that succeeded.
                 ablastr::warn_manager::WMRecordWarning("ThetaImplicitEM",
                     "Notice: solver failed at step " + std::to_string(a_step+1) +
                     "during subcycling step " + std::to_string(isubstep+1) +
