@@ -913,9 +913,9 @@ void ImplicitSolver::PreLinearSolve ()
     if (m_use_mass_matrices) {
 
         m_WarpX->DepositMassMatrices();
+        FinishMassMatricesDeposition();
 
         if (m_use_mass_matrices_jacobian) {
-            FinishMassMatrices();
             SaveE();
         }
 
@@ -1112,9 +1112,9 @@ void ImplicitSolver::SetMassMatricesForPC ( const amrex::Real a_theta_dt )
 
 }
 
-void ImplicitSolver::FinishMassMatrices ()
+void ImplicitSolver::FinishMassMatricesDeposition ()
 {
-    BL_PROFILE("ImplicitSolver::FinishMassMatrices()");
+    BL_PROFILE("ImplicitSolver::FinishMassMatricesDeposition()");
 
     // The MM deposit routine takes advantage of symmetry for the diagonal mass
     // matrices to only deposit roughly half of the values. The remainder are
