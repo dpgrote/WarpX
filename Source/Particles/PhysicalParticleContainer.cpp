@@ -1751,7 +1751,7 @@ void PhysicalParticleContainer::resample (const amrex::Vector<amrex::Geometry>& 
         }
         deleteInvalidParticles();
         if (verbose) {
-            amrex::Long new_global_numparts = TotalNumberOfParticles();
+            const amrex::Long new_global_numparts = TotalNumberOfParticles();
             amrex::Print() << Utils::TextMsg::Info(
                 "Resampled " + species_name + " at step " + std::to_string(timestep)
                 + ": macroparticle count decreased by "
