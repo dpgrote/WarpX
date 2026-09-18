@@ -162,6 +162,8 @@ public:
     MultiFluidContainer& GetFluidContainer () { return *myfl; }
     ElectrostaticSolver& GetElectrostaticSolver () {return *m_electrostatic_solver;}
     [[nodiscard]] HybridPICModel * get_pointer_HybridPICModel () const { return m_hybrid_pic_model.get(); }
+    /** Return the implicit solver, or nullptr when the evolve scheme is explicit */
+    [[nodiscard]] ImplicitSolver * get_pointer_ImplicitSolver () const { return m_implicit_solver.get(); }
     MultiDiagnostics& GetMultiDiags () {return *multi_diags;}
     ParticleBoundaryBuffer& GetParticleBoundaryBuffer () { return *m_particle_boundary_buffer; }
     amrex::Vector<std::array< std::unique_ptr<amrex::iMultiFab>,3 > >& GetEBUpdateEFlag() { return m_eb_update_E; }
@@ -779,6 +781,24 @@ public:
         bool const step_after_start = (step >= start_moving_window_step);
         return do_moving_window && step_before_end && step_after_start;
     }
+    /** Physical distance the moving window travels in a single step of size dt
+     *
+     * Used every step in MoveWindow() to advance moving_window_x.
+     *
+     * @param dt time step size
+     */
+    static amrex::Real MovingWindowShiftPerStep (amrex::Real dt);
+    /** Number of cells by which the moving window has shifted past domain_lo
+     *
+     * The moving window position is continuous, but the domain and fields can
+     * only be shifted by an integer number of cells; this truncates the
+     * physical displacement to the grid, matching the alignment used in
+     * MoveWindow().
+     *
+     * @param displacement physical distance between the moving window and a reference point
+     * @param cell_size cell size in the moving window direction
+     */
+    static int NumCellsShifted (amrex::Real displacement, amrex::Real cell_size);
     static int moving_window_dir;
     static amrex::Real moving_window_v;
     static bool fft_do_time_averaging;
