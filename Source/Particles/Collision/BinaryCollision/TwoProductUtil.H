@@ -168,64 +168,54 @@ namespace {
         const double one_minus_beta_sq_d = amrex::max(1.0 - vc_sq_d*inv_c2_d, std::numeric_limits<double>::epsilon());
         const double gc_d = 1.0 / std::sqrt(one_minus_beta_sq_d);
 
-        // Compute momentum of first product in the center of mass frame
-        amrex::ParticleReal px_star_out = 0.0_prt;
-        amrex::ParticleReal py_star_out = 0.0_prt;
-        amrex::ParticleReal pz_star_out = 0.0_prt;
-        if (scattering_angle_model == ScatteringAngleModel::Isotropic) {
-            // Isotropic scattering: the angle of emission of the products in the center of mass frame is random
-            ParticleUtils::RandomizeVelocity(px_star_out, py_star_out, pz_star_out, static_cast<amrex::ParticleReal>(p_star_f_d),
-                                             engine);
+        // Compute the momentum of the first incident particle in the center-of-momentum (COM) frame.
+        double p1x_star_in_d = p1x_in_d;
+        double p1y_star_in_d = p1y_in_d;
+        double p1z_star_in_d = p1z_in_d;
+        if (vc_sq_d > std::numeric_limits<double>::min())
+        {
+            // Transform to the COM frame using equation (2) of Perez et al. (2012).
+            const double vcDps_d = vcx_d*p1x_in_d + vcy_d*p1y_in_d + vcz_d*p1z_in_d;
+            const double factor0_d = (gc_d-1.0)/vc_sq_d;
+            const double factor_d = factor0_d*vcDps_d - p1t_in*gc_d/c_d;
+            p1x_star_in_d += vcx_d * factor_d;
+            p1y_star_in_d += vcy_d * factor_d;
+            p1z_star_in_d += vcz_d * factor_d;
         }
-        else if (scattering_angle_model == ScatteringAngleModel::Forward ||
-                 scattering_angle_model == ScatteringAngleModel::Backward) {
-            // Forward scattering: the products have the same direction as the incident particle in the center of mass frame
-            // Backward scattering: the products have the opposite direction of the incident particle in the center of mass frame
-            double p1x_star_in_d;
-            double p1y_star_in_d;
-            double p1z_star_in_d;
-            if ( vc_sq_d > std::numeric_limits<double>::min() )
-            {
-                // Convert momentum of first incident particle to lab frame, using equation (2)
-                // of F. Perez et al., Phys.Plasmas.19.083104 (2012)
-                const double vcDps_d = vcx_d*p1x_in_d + vcy_d*p1y_in_d + vcz_d*p1z_in_d;
-                const double factor0_d = (gc_d-1.0)/vc_sq_d;
-                const double factor_d = factor0_d*vcDps_d - p1t_in*gc_d/c_d;
-                p1x_star_in_d = p1x_in_d + vcx_d * factor_d;
-                p1y_star_in_d = p1y_in_d + vcy_d * factor_d;
-                p1z_star_in_d = p1z_in_d + vcz_d * factor_d;
-            }
-            else // If center of mass velocity is zero, we are already in the lab frame
-            {
-                p1x_star_in_d = p1x_in_d;
-                p1y_star_in_d = p1y_in_d;
-                p1z_star_in_d = p1z_in_d;
-            }
-            const double p1_star_in_d = std::sqrt(p1x_star_in_d*p1x_star_in_d + p1y_star_in_d*p1y_star_in_d + p1z_star_in_d*p1z_star_in_d);
+        const double p1_star_in_d = std::sqrt(
+            p1x_star_in_d*p1x_star_in_d + p1y_star_in_d*p1y_star_in_d
+            + p1z_star_in_d*p1z_star_in_d);
+        const bool has_incident_direction = p1_star_in_d > std::numeric_limits<double>::min();
 
-            // Momentum of the first product in the center of mass frame:
-            // same (forward) or opposite (backward) direction as the incident, scaled to have
-            // the magnitude sqrt(p_star_f_sq)
-            const double sign_d = (scattering_angle_model == ScatteringAngleModel::Backward) ? -1.0 : 1.0;
-            if (p1_star_in_d > std::numeric_limits<double>::min())
-            {
-                const double scaling_d = sign_d*p_star_f_d/p1_star_in_d;
-                px_star_out = static_cast<amrex::ParticleReal>(p1x_star_in_d * scaling_d);
-                py_star_out = static_cast<amrex::ParticleReal>(p1y_star_in_d * scaling_d);
-                pz_star_out = static_cast<amrex::ParticleReal>(p1z_star_in_d * scaling_d);
-            }
-            else
-            {
-                // Incident direction is undefined in the COM frame; fall back to an
-                // isotropic direction while conserving the outgoing COM momentum magnitude.
-                ParticleUtils::RandomizeVelocity(px_star_out, py_star_out, pz_star_out,
-                    static_cast<amrex::ParticleReal>(p_star_f_d), engine);
-            }
+        // Rotate a unit direction: squared SI momenta can underflow in ParticleReal.
+        // Use the z axis when the incident direction is undefined, and scatter isotropically.
+        amrex::ParticleReal n1x_star_out = 0.0_prt;
+        amrex::ParticleReal n1y_star_out = 0.0_prt;
+        amrex::ParticleReal n1z_star_out = 1.0_prt;
+        if (has_incident_direction)
+        {
+            n1x_star_out = static_cast<amrex::ParticleReal>(p1x_star_in_d/p1_star_in_d);
+            n1y_star_out = static_cast<amrex::ParticleReal>(p1y_star_in_d/p1_star_in_d);
+            n1z_star_out = static_cast<amrex::ParticleReal>(p1z_star_in_d/p1_star_in_d);
         }
 
-        const auto px_star_out_d = static_cast<double>(px_star_out);
-        const auto py_star_out_d = static_cast<double>(py_star_out);
-        const auto pz_star_out_d = static_cast<double>(pz_star_out);
+        // Choose the polar deflection and azimuthal angle in the COM frame.
+        const amrex::ParticleReal phi = 2.0_prt * MathConst::pi * amrex::Random(engine);
+        amrex::ParticleReal costh = 1.0_prt; // default is Forward scattering
+        if (scattering_angle_model == ScatteringAngleModel::Isotropic || !has_incident_direction)
+        {
+            costh = 2.0_prt * amrex::Random(engine) - 1.0_prt;
+        }
+        else if (scattering_angle_model == ScatteringAngleModel::Backward)
+        {
+            costh = -1.0_prt;
+        }
+        ParticleUtils::rotateVector(n1x_star_out, n1y_star_out, n1z_star_out, phi, costh);
+
+        // Scale the scattered direction to the outgoing COM momentum magnitude.
+        const double px_star_out_d = static_cast<double>(n1x_star_out) * p_star_f_d;
+        const double py_star_out_d = static_cast<double>(n1y_star_out) * p_star_f_d;
+        const double pz_star_out_d = static_cast<double>(n1z_star_out) * p_star_f_d;
 
         // Next step is to convert momenta to lab frame
         double p1x_out_d;

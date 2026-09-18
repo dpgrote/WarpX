@@ -12,10 +12,14 @@
 
 #include <AMReX_DenseBins.H>
 #include <AMReX_Geometry.H>
+#include <AMReX_GpuBuffer.H>
+#include <AMReX_GpuContainers.H>
 #include <AMReX_Particles.H>
 #include <AMReX_Math.H>
 
 #include <AMReX_BaseFwd.H>
+
+#include <array>
 
 namespace ParticleUtils {
 
@@ -179,6 +183,46 @@ namespace ParticleUtils {
             pz = pz + gammam1*pdotn*Uz_hat - Uz*P0/PhysConst::c;
         }
 
+    }
+
+    /**
+     * \brief Rotate a vector by polar angle theta and azimuthal angle phi, with theta measured from
+     *        the original vector. The magnitude of the vector is preserved.
+     *
+     * @tparam T floating-point type of the vector components and angles
+     * @param[in,out] ux x-component of the vector
+     * @param[in,out] uy y-component of the vector
+     * @param[in,out] uz z-component of the vector
+     * @param[in] phi azimuthal angle phi in [0, 2pi)
+     * @param[in] costh cosine of polar angle theta; must be in [-1, 1]
+     */
+    template <typename T>
+    AMREX_GPU_HOST_DEVICE AMREX_INLINE
+    void rotateVector (T& ux, T& uy, T& uz, T phi, T costh)
+    {
+        AMREX_ASSERT(costh >= -T(1) && costh <= T(1));
+        const T cosph = std::cos(phi);
+        const T sinph = std::sin(phi);
+        const T sinth = std::sqrt(std::max(T(0), T(1) - costh*costh));
+
+        const T ux0 = ux;
+        const T uy0 = uy;
+        const T uz0 = uz;
+        const T u = std::sqrt(ux0*ux0 + uy0*uy0 + uz0*uz0);
+        const T uperp = std::sqrt(ux0*ux0 + uy0*uy0);
+
+        if (uperp == T(0)) {
+            ux = u*sinth*cosph;
+            uy = u*sinth*sinph;
+            uz = uz0*costh;
+        }
+        else {
+            const T nx = ux0/uperp;
+            const T ny = uy0/uperp;
+            ux = uz0*nx*sinth*cosph - u*ny*sinth*sinph + ux0*costh;
+            uy = uz0*ny*sinth*cosph + u*nx*sinth*sinph + uy0*costh;
+            uz = -uperp*sinth*cosph + uz0*costh;
+        }
     }
 
     /**
@@ -669,25 +713,21 @@ namespace ParticleUtils {
     }
 
     /**
-     * \brief Check for grid crossing errors after Villasenor deposition and abort if any found
+     * \brief Check for grid crossing errors after Villasenor mass matrix deposition and abort if any found
      *
-     * \param d_error_x  Device vector containing x-direction error count
-     * \param d_error_y  Device vector containing y-direction error count
-     * \param d_error_z  Device vector containing z-direction error count
+     * \param grid_crossing_error_count  Buffer containing three error counts in x, y, z order
      * \param max_grid_crossings  Maximum allowed crossings per direction
      */
     AMREX_INLINE
-    void CheckGridCrossingErrors (const amrex::Gpu::DeviceVector<int>& d_error_x,
-                                  const amrex::Gpu::DeviceVector<int>& d_error_y,
-                                  const amrex::Gpu::DeviceVector<int>& d_error_z,
+    void CheckGridCrossingErrors (amrex::Gpu::Buffer<int>& grid_crossing_error_count,
                                   const int max_grid_crossings)
     {
-        const int h_error_x = d_error_x[0];
-        const int h_error_y = d_error_y[0];
-        const int h_error_z = d_error_z[0];
-
+        const int* h_errors = grid_crossing_error_count.copyToHost();
+        const int h_error_x = h_errors[0];
+        const int h_error_y = h_errors[1];
+        const int h_error_z = h_errors[2];
         if (h_error_x > 0 || h_error_y > 0 || h_error_z > 0) {
-            std::string error_msg = "Villasenor deposition error: particles exceeded max_grid_crossings.\n";
+            std::string error_msg = "Villasenor mass matrix deposition error: particles exceeded max_grid_crossings.\n";
             if (h_error_x > 0) {
                 error_msg += "  X-direction: " + std::to_string(h_error_x) + " particles\n";
             }
