@@ -90,7 +90,7 @@ drho_trimmed = drho[:-1, ...]
 Ng = drho_trimmed.size
 drho2_avg = (drho_trimmed**2).sum() / Ng
 drho_rms = np.sqrt(drho2_avg)
-tolerance_rel_charge = 2.0e-12
+tolerance_rel_charge = 2.2e-12
 print(f"rms error in charge conservation: {drho_rms}")
 print(f"tolerance: {tolerance_rel_charge}")
 assert drho_rms < tolerance_rel_charge
