@@ -43,7 +43,7 @@ x1 = []
 x2 = []
 beta1 = []
 beta2 = []
-for filename in sorted(glob.glob(filename_radical + "*")):
+for filename in sorted(glob.glob(filename_radical + 6 * "[0-9]")):
     print(filename)
     ds = yt.load(filename)
     ad = ds.all_data()
