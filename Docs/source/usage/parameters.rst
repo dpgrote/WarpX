@@ -296,6 +296,7 @@ Overall simulation parameters
 
         - ``implicit_evolve.use_mass_matrices_jacobian`` (``bool``, default: false).
           When ``true``, the plasma current density is computed using the mass matrices during the linear stage of PS-JFNK, replacing direct particle calculations. This can enable large speed ups for simulations with many particles.
+          In 3D, this option is currently only implemented for ``algo.current_deposition = direct``.
 
           - ``implicit_evolve.skip_particle_picard_init`` (``bool``, default: false).
             When ``true`` and ``implicit_evolve.use_mass_matrices_jacobian = true``, the full Picard update of the particles is skipped on the initial Newton step, and only a single iteration is performed.
@@ -2999,6 +3000,10 @@ Details about the collision models can be found in the :ref:`theory section <mul
     In these four cases, only one species name should be given.
     If using ``linear_breit_wheeler`` these should be two photon species.
     If using ``linear_compton``, these should be two species: first, a photon species, and second, a lepton species, in this exact order.
+    If using two-product ``nuclearfusion`` with ``scattering_angle_model = legendre``, consider the reaction to be ordered as ``A + B -> C + D``.
+    The first entry in ``species`` must be the incident reactant ``A``, and the second must be the target reactant ``B``.
+    The scattering angle is measured between the momenta of ``A`` and ``C`` in the center-of-momentum frame.
+    For example, T(d,n)He4 corresponds to ``d + T -> n + He4``, so ``species`` must list the deuterium species first and the tritium species second.
 
 .. pp:param:: <collision_name>.product_species
     :type: ``strings``
@@ -3006,11 +3011,14 @@ Details about the collision models can be found in the :ref:`theory section <mul
     Only for ``dsmc``, ``linear_breit_wheeler``, ``nuclearfusion``, and ``bremsstrahlung``.
     The name(s) of the species in which to add the new macroparticles created by the reaction.
     If using ``dsmc`` with ionization reactions, the first species in this list must be an electron.
-    If using ``dsmc`` with ``charge_exchange`` and ``twoproduct_reaction``, the order of the ``product_species`` should match the order of the species in :pp:param:`<collision_name>.species`.
+    If using ``dsmc`` with ``charge_exchange`` and ``two_product_reaction``, the order of the ``product_species`` should match the order of the species in :pp:param:`<collision_name>.species`.
     If using ``linear_breit_wheeler`` these should be two species: one of electrons and one of positrons.
     If using ``bremsstrahlung``, the product species must be of type photon.
     If using ``linear_compton``, these should be two species: first, a photon species, and second, a lepton species, in this exact order.
     If using ``pulsed_decay``, the sum of the product species charges and mass must equal those of the parent species.
+    If using two-product ``nuclearfusion`` with ``scattering_angle_model = legendre``, consider the reaction to be ordered as ``A + B -> C + D``, as described for :pp:param:`<collision_name>.species`.
+    The first entry in ``product_species`` must be product ``C``, and the second must be product ``D``.
+    For example, T(d,n)He4 corresponds to ``d + T -> n + He4``, so ``product_species`` must list the neutron first and helium4 second.
 
 .. pp:param:: <collision_name>.ndt_supercycle
     :type: ``int``
@@ -3028,6 +3036,16 @@ Details about the collision models can be found in the :ref:`theory section <mul
     The effective collision time step is ``dt_collision = dt_PIC / ndt_subcycle``.
     Must be >= 1. Mutually exclusive with ``ndt_supercycle``.
     Useful when a large PIC time step is desired but collisions require finer time resolution.
+
+.. pp:param:: <collision_name>.start_step
+    :type: ``int``
+    :default: ``0``
+    :optional:
+
+    First time step on which the collision is applied. Must be >= 0.
+    When used with ``ndt_supercycle``, this acts as an offset: the collision is executed
+    on steps ``start_step``, ``start_step + ndt_supercycle``, ``start_step + 2*ndt_supercycle``, etc.
+    When used with ``ndt_subcycle``, the collision is subcycled on every step starting from ``start_step``.
 
 .. pp:param:: <collision_name>.cumulative_scattering_angle_model
     :type: ``string``
@@ -3107,10 +3125,43 @@ Details about the collision models can be found in the :ref:`theory section <mul
     :optional:
 
     Only for ``nuclearfusion``. The scattering angle for the products of the fusion reaction.
-    The possible values are ``isotropic``, ``forward`` and ``backward``.
+    The possible values are ``isotropic``, ``forward``, ``backward``, and ``legendre``.
     With ``isotropic``, the scattering angle is drawn from an isotropic distribution.
     With ``forward``, the scattering angle is set to zero, i.e. the products are emitted in the same direction as the reactant (in the center of mass frame).
     With ``backward``, the scattering angle is set to :math:`\pi`, i.e. the products are emitted in the opposite direction of the reactant (in the center of mass frame).
+    With ``legendre``, the scattering angle is drawn from the anisotropic distribution represented by a Legendre expansion of the differential cross section of the fusion reaction.
+    For a two-product reaction written as ``A + B -> C + D``, the anisotropic distribution gives the angle between the momenta of the incident reactant ``A`` and product ``C`` in the center-of-momentum frame.
+    Therefore, :pp:param:`<collision_name>.species` must be ordered as ``A B``, and :pp:param:`<collision_name>.product_species` must be ordered as ``C D``.
+    See :cite:t:`param-VanDeWeteringPRE2025` for a discussion of the importance of anisotropic scattering for nuclear fusion reactions.
+
+.. pp:param:: <collision_name>.legendre_angular_distribution_coefficients
+    :type: ``string``
+    :optional:
+
+    Only for ``nuclearfusion``.
+    Path to an energy-dependent table of Legendre coefficients used by the ``legendre`` scattering angle model.
+    Each nonempty row contains a center-of-mass energy in eV followed by all coefficients from order zero upward.
+    The zeroth-order coefficient and at least one higher-order coefficient are required.
+    At least two rows are required, and their energies must be strictly increasing.
+    For two-product fusion written as ``A + B -> C + D``, these coefficients describe the angle between the momenta of the incident reactant ``A`` and product ``C`` in the center-of-momentum frame.
+    Example coefficient tables are available in the `WarpX data repository <https://github.com/BLAST-WarpX/warpx-data/tree/master/nuclear_fusion>`__.
+
+.. pp:param:: <collision_name>.legendre_angular_distribution_coefficients_format
+    :type: ``string``
+
+    Format of :pp:param:`<collision_name>.legendre_angular_distribution_coefficients`.
+    This parameter is required when a coefficient table is specified.
+    ``ENDF`` selects the orthonormal Legendre coefficients defined by the ENDF-6 format :cite:p:`param-BrownENDF2023`, which WarpX uses as given.
+    ``IAEA`` selects the non-orthonormal coefficients tabulated by :cite:t:`param-DrosgOtukaIAEA2015`.
+    WarpX converts every IAEA coefficient before use according to
+
+    .. math::
+
+       L_l^{\mathrm{ENDF}} = \frac{L_l^{\mathrm{IAEA}}/L_0^{\mathrm{IAEA}}}{2l+1}.
+
+    The value is case-insensitive.
+    The zeroth-order IAEA coefficient must be nonzero in every row.
+    Example coefficient tables are available in the `WarpX data repository <https://github.com/BLAST-WarpX/warpx-data/tree/master/nuclear_fusion>`__.
 
 .. pp:param:: <collision_name>.create_products
     :type: ``bool``
@@ -3202,7 +3253,7 @@ Details about the collision models can be found in the :ref:`theory section <mul
     :type: ``strings`` separated by spaces
 
     Only for ``dsmc`` and ``background_mcc``. The scattering processes that should be
-    included. Available options are ``elasticX``, ``excitationX``, ``twoproduct_reaction`` and ``charge_exchange``
+    included. Available options are ``elasticX``, ``excitationX``, ``two_product_reaction`` and ``charge_exchange``
     for ions and ``elasticX``, ``excitationX`` and ``ionization`` for electrons.
     Multiple elastic and excitation events can be included, corresponding e.g. to
     excitation to different levels or to several elastic channels (with different
@@ -3211,7 +3262,7 @@ Details about the collision models can be found in the :ref:`theory section <mul
     a path to a cross-section data file must also be given. We use
     ``<scattering_process>`` as a placeholder going forward.
 
-    For ``elasticX``, ``excitationX``, ``charge_exchange`` and ``twoproduct_reaction``, the
+    For ``elasticX``, ``excitationX``, ``charge_exchange`` and ``two_product_reaction``, the
     angular distribution is controlled by the per-process
     :pp:param:`<collision_name>.<scattering_process>_scattering_angle_model` argument.
 
@@ -3230,7 +3281,7 @@ Details about the collision models can be found in the :ref:`theory section <mul
 
     Only for ``dsmc`` and ``background_mcc``. The energy cost of the process, in eV. It is
     required for ``excitationX`` and ``ionization``, optional for ``charge_exchange`` and
-    ``twoproduct_reaction`` (which may impose a fixed energy loss, defaulting to 0), and
+    ``two_product_reaction`` (which may impose a fixed energy loss, defaulting to 0), and
     ignored for ``elasticX`` processes (which have no energy cost).
 
 .. pp:param:: <collision_name>.<scattering_process>_scattering_angle_model
@@ -3238,11 +3289,11 @@ Details about the collision models can be found in the :ref:`theory section <mul
     :optional:
 
     Only for ``dsmc`` and ``background_mcc``, and only for ``elasticX``, ``excitationX``,
-    ``charge_exchange`` and ``twoproduct_reaction``.
+    ``charge_exchange`` and ``two_product_reaction``.
     The model used to determine the scattering angle of the products
     in the center-of-mass frame. The possible values are ``isotropic``, ``forward`` and ``backward``.
     The default is ``isotropic`` for ``elasticX`` and ``excitationX``, and ``forward`` for
-    ``charge_exchange`` and ``twoproduct_reaction``.
+    ``charge_exchange`` and ``two_product_reaction``.
     With ``isotropic``, the scattering angle is drawn from an isotropic distribution.
     With ``forward``, the scattering angle is set to zero, i.e. the products keep the same direction
     as the incident particle (in the center of mass frame).
@@ -4291,13 +4342,14 @@ Additional parameters
 
 .. pp:param:: warpx.sort_particles_for_deposition
     :type: ``bool``
-    :default: ``true`` for the CUDA backend, otherwise ``false``
+    :default: ``true`` for the CUDA and HIP backends, otherwise ``false``
     :optional:
 
     This option controls the type of sorting used if particle sorting is turned on, i.e. if ``sort_intervals`` is not ``<=0``.
     If ``true``, particles will be sorted by cell to optimize deposition with many particles per cell, in the order x -> y -> z -> ppc.
     If ``false``, particles will be sorted by bin, using the ``sort_bin_size`` parameter below, in the order ppc -> x -> y -> z.
-    ``true`` is recommend for best performance on NVIDIA GPUs, especially if there are many particles per cell.
+    ``true`` is recommended for best performance on NVIDIA and AMD GPUs, especially if
+    there are many particles per cell.
 
 .. pp:param:: warpx.sort_idx_type
     :type: list of ``int``
