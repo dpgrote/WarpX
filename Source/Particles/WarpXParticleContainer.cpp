@@ -2183,7 +2183,7 @@ WarpXParticleContainer::DepositTotalNGPTemperature (int lev)
                 const amrex::Real denom = N_array(i,j,k,0) - N_array(i,j,k,1);
                 const amrex::Real invsum = denom > 0._rt ? 1._rt/denom : 0._rt;
                 // This operation order reduces the risk of underflow in single precision.
-                temp_array(i,j,k) *= (mass/(3._rt*PhysConst::q_e)*invsum;
+                temp_array(i,j,k) *= (mass/(3._rt*PhysConst::q_e))*invsum;
             });
     }
 
