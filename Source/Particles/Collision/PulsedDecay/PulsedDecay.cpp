@@ -206,7 +206,7 @@ PulsedDecay::doCollisions (amrex::Real cur_time, amrex::Real dt, MultiParticleCo
                     // Since fixed_product_weight will likely not divide exactly into product,
                     // Randomly round the number of macroparticles up.
                     const amrex::ParticleReal num_expected = product/fixed_product_weight;
-                    int num_macro_particles = static_cast<int>(std::floor(num_expected + amrex::Random(engine)));
+                    const int num_macro_particles = static_cast<int>(std::floor(num_expected + amrex::Random(engine)));
 
                     // Subtract the product weight from the source macroparticle.
                     w1[ip] -= product;
