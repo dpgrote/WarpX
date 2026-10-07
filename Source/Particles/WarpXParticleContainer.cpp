@@ -2159,7 +2159,7 @@ WarpXParticleContainer::DepositTotalNGPTemperature (int lev)
                 const amrex::ParticleReal mean_uz = uz_array(ii, jj, kk);
                 ParticleUtils::doLorentzTransformWithU(ux, uy, uz, mean_ux, mean_uy, mean_uz);
                 amrex::ParticleReal const usq = ux*ux + uy*uy + uz*uz;
-                amrex::ParticleReal const gaminv = 1._rt/std::sqrt(1._rt + usq/(PhysConst::c*PhysConst::c));
+                amrex::ParticleReal const gaminv = 1._rt/std::sqrt(1._rt + usq/(PhysConst::c2));
                 const auto gammausq = (amrex::Real)(w*gaminv*usq);
                 amrex::Gpu::Atomic::AddNoRet(&temp_array(ii, jj, kk), gammausq);
             });
