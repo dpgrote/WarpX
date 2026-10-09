@@ -126,14 +126,14 @@ public:
 
     bool point_source = false;
     long point_source_nparticles = 0;
-    amrex::Real point_source_width = 0.0;
-    amrex::Real point_source_height = 0.0;
-    amrex::Real point_source_aperture_z = 0.0;
-    amrex::Real point_source_p = 0.0;
-    amrex::Real point_source_vdrift = 0.0;
-    amrex::Real point_source_vparallelrms = 0.0;
-    amrex::Real point_source_vperprms = 0.0;
-    amrex::Real point_source_taucycle = 0.0;
+    amrex::ParticleReal point_source_width = 0.0;
+    amrex::ParticleReal point_source_height = 0.0;
+    amrex::ParticleReal point_source_aperture_z = 0.0;
+    amrex::ParticleReal point_source_p = 0.0;
+    amrex::ParticleReal point_source_vdrift = 0.0;
+    amrex::ParticleReal point_source_vparallelrms = 0.0;
+    amrex::ParticleReal point_source_vperprms = 0.0;
+    amrex::ParticleReal point_source_taucycle = 0.0;
     amrex::ParticleReal point_source_weight = 1.0;
 
     amrex::Real surface_flux_pos; // surface location

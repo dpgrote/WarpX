@@ -25,72 +25,77 @@
 #include <cmath>
 #include <vector>
 
-using namespace amrex;
-using namespace amrex::literals;
-
 namespace
 {
-    [[nodiscard]] amrex::Vector<amrex::Real>
-    build_point_source_cdf (long nparticles, amrex::Real width, amrex::Real height, amrex::Real p)
+    [[nodiscard]] amrex::Vector<amrex::ParticleReal>
+    build_point_source_cdf (
+        long nparticles,
+        amrex::ParticleReal width,
+        amrex::ParticleReal height,
+        amrex::ParticleReal p)
     {
+        using namespace amrex::literals;
+
         constexpr long min_samples = 1024;
         constexpr long max_samples = 1000000;
         const long nsamples = std::max(min_samples, std::min(10L*nparticles, max_samples));
 
-        amrex::Vector<amrex::Real> cdf(nsamples+1, 0._rt);
-        const amrex::Real dx = width/static_cast<amrex::Real>(nsamples);
+        amrex::Vector<amrex::ParticleReal> cdf(nsamples+1, 0._prt);
+        const amrex::ParticleReal dx = width/static_cast<amrex::ParticleReal>(nsamples);
 
-        auto const pdf = [=] (amrex::Real x)
+        auto const pdf = [=] (amrex::ParticleReal x)
         {
-            const amrex::Real theta = std::atan2(x, height);
+            const amrex::ParticleReal theta = std::atan2(x, height);
             return std::pow(std::cos(theta), p);
         };
 
-        amrex::Real prev_f = pdf(-0.5_rt*width);
+        amrex::ParticleReal prev_f = pdf(-0.5_prt*width);
         for (long i = 1; i <= nsamples; ++i) {
-            const amrex::Real x = -0.5_rt*width + static_cast<amrex::Real>(i)*dx;
-            const amrex::Real f = pdf(x);
-            cdf[i] = cdf[i-1] + 0.5_rt*(prev_f + f)*dx;
+            const amrex::ParticleReal x = -0.5_prt*width + static_cast<amrex::ParticleReal>(i)*dx;
+            const amrex::ParticleReal f = pdf(x);
+            cdf[i] = cdf[i-1] + 0.5_prt*(prev_f + f)*dx;
             prev_f = f;
         }
 
-        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(cdf.back() > 0._rt,
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(cdf.back() > 0._prt,
             "Point source CDF normalization must be strictly positive.");
 
         for (auto& val : cdf) {
             val /= cdf.back();
         }
-        cdf.back() = 1._rt;
+        cdf.back() = 1._prt;
         return cdf;
     }
 
-    [[nodiscard]] amrex::Real sample_aperture_position (
-        amrex::Real u,
-        amrex::Real width,
-        amrex::Vector<amrex::Real> const& cdf)
+    [[nodiscard]] amrex::ParticleReal sample_aperture_position (
+        amrex::ParticleReal u,
+        amrex::ParticleReal width,
+        amrex::Vector<amrex::ParticleReal> const& cdf)
     {
+        using namespace amrex::literals;
+
         auto const it = std::upper_bound(cdf.begin(), cdf.end(), u);
         if (it == cdf.begin()) {
-            return -0.5_rt*width;
+            return -0.5_prt*width;
         }
         if (it == cdf.end()) {
-            return 0.5_rt*width;
+            return 0.5_prt*width;
         }
 
         const long upper = static_cast<long>(std::distance(cdf.begin(), it));
         const long lower = upper - 1;
-        const amrex::Real x0 = -0.5_rt*width + width*static_cast<amrex::Real>(lower)
-            / static_cast<amrex::Real>(cdf.size()-1);
-        const amrex::Real x1 = -0.5_rt*width + width*static_cast<amrex::Real>(upper)
-            / static_cast<amrex::Real>(cdf.size()-1);
-        const amrex::Real c0 = cdf[lower];
-        const amrex::Real c1 = cdf[upper];
+        const amrex::ParticleReal x0 = -0.5_prt*width + width*static_cast<amrex::ParticleReal>(lower)
+            / static_cast<amrex::ParticleReal>(cdf.size()-1);
+        const amrex::ParticleReal x1 = -0.5_prt*width + width*static_cast<amrex::ParticleReal>(upper)
+            / static_cast<amrex::ParticleReal>(cdf.size()-1);
+        const amrex::ParticleReal c0 = cdf[lower];
+        const amrex::ParticleReal c1 = cdf[upper];
 
         if (c1 <= c0) {
             return x0;
         }
 
-        const amrex::Real alpha = (u - c0)/(c1 - c0);
+        const amrex::ParticleReal alpha = (u - c0)/(c1 - c0);
         return x0 + alpha*(x1 - x0);
     }
 }
@@ -98,6 +103,8 @@ namespace
 void
 PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector)
 {
+    using namespace amrex::literals;
+
     ABLASTR_PROFILE("PhysicalParticleContainer::AddPointSource()");
 
 #if defined(WARPX_DIM_RZ) || defined(WARPX_DIM_1D_Z) || defined(WARPX_DIM_RCYLINDER) || defined(WARPX_DIM_RSPHERE)
@@ -110,84 +117,88 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
         return;
     }
 
-    if (WarpX::gamma_boost > 1._rt) {
+    const int nprocs = amrex::ParallelDescriptor::NProcs();
+    const int myproc = amrex::ParallelDescriptor::MyProc();
+    const long base_nparticles = nparticles / nprocs;
+    const long remainder = nparticles % nprocs;
+    const long local_nparticles = base_nparticles + (myproc < remainder ? 1 : 0);
+
+    if (WarpX::gamma_boost > 1._prt) {
         WARPX_ABORT_WITH_MESSAGE(
             "point_source injection is not yet implemented for boosted-frame simulations.");
     }
 
-    const amrex::Real width = plasma_injector.point_source_width;
-    const amrex::Real height = plasma_injector.point_source_height;
-    const amrex::Real aperture_z = plasma_injector.point_source_aperture_z;
-    const amrex::Real p = plasma_injector.point_source_p;
-    const amrex::Real vdrift = plasma_injector.point_source_vdrift;
-    const amrex::Real vparallelrms = plasma_injector.point_source_vparallelrms;
-    const amrex::Real vperprms = plasma_injector.point_source_vperprms;
-    const amrex::Real taucycle = plasma_injector.point_source_taucycle;
+    const amrex::ParticleReal width = plasma_injector.point_source_width;
+    const amrex::ParticleReal height = plasma_injector.point_source_height;
+    const amrex::ParticleReal aperture_z = plasma_injector.point_source_aperture_z;
+    const amrex::ParticleReal p = plasma_injector.point_source_p;
+    const amrex::ParticleReal vdrift = plasma_injector.point_source_vdrift;
+    const amrex::ParticleReal vparallelrms = plasma_injector.point_source_vparallelrms;
+    const amrex::ParticleReal vperprms = plasma_injector.point_source_vperprms;
+    const amrex::ParticleReal taucycle = plasma_injector.point_source_taucycle;
     const amrex::ParticleReal weight = plasma_injector.point_source_weight;
 
-    amrex::Gpu::HostVector<ParticleReal> particle_x;
-    amrex::Gpu::HostVector<ParticleReal> particle_y;
-    amrex::Gpu::HostVector<ParticleReal> particle_z;
-    amrex::Gpu::HostVector<ParticleReal> particle_ux;
-    amrex::Gpu::HostVector<ParticleReal> particle_uy;
-    amrex::Gpu::HostVector<ParticleReal> particle_uz;
-    amrex::Gpu::HostVector<ParticleReal> particle_w;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_x;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_y;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_z;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_ux;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_uy;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_uz;
+    amrex::Gpu::HostVector<amrex::ParticleReal> particle_w;
 
-    if (ParallelDescriptor::IOProcessor()) {
-        particle_x.reserve(nparticles);
-        particle_y.reserve(nparticles);
-        particle_z.reserve(nparticles);
-        particle_ux.reserve(nparticles);
-        particle_uy.reserve(nparticles);
-        particle_uz.reserve(nparticles);
-        particle_w.reserve(nparticles);
+    particle_x.reserve(local_nparticles);
+    particle_y.reserve(local_nparticles);
+    particle_z.reserve(local_nparticles);
+    particle_ux.reserve(local_nparticles);
+    particle_uy.reserve(local_nparticles);
+    particle_uz.reserve(local_nparticles);
+    particle_w.reserve(local_nparticles);
 
-        const amrex::Vector<amrex::Real> cdf = build_point_source_cdf(nparticles, width, height, p);
+    const amrex::Vector<amrex::ParticleReal> cdf = build_point_source_cdf(nparticles, width, height, p);
 
-        for (long i = 0; i < nparticles; ++i) {
-            const amrex::Real t = amrex::Random()*taucycle;
-            const amrex::Real aperture_x = sample_aperture_position(amrex::Random(), width, cdf);
-            const amrex::Real theta = std::atan2(aperture_x, height);
-            const amrex::Real vparallel = vdrift + amrex::RandomNormal(0._rt, vparallelrms);
-            const amrex::Real vperp = amrex::RandomNormal(0._rt, vperprms);
+    for (long i = 0; i < local_nparticles; ++i) {
+        const amrex::ParticleReal t = amrex::Random()*taucycle;
+        const amrex::ParticleReal aperture_x = sample_aperture_position(amrex::Random(), width, cdf);
+        const amrex::ParticleReal theta = std::atan2(aperture_x, height);
+        const amrex::ParticleReal vparallel = vdrift + amrex::RandomNormal(0._prt, vparallelrms);
+        const amrex::ParticleReal vperp = amrex::RandomNormal(0._prt, vperprms);
 
-            const amrex::Real vx = vparallel*std::sin(theta) + vperp*std::cos(theta);
-            const amrex::Real vz = vparallel*std::cos(theta) - vperp*std::sin(theta);
-            const amrex::Real v2 = vx*vx + vz*vz;
+        const amrex::ParticleReal vx = vparallel*std::sin(theta) + vperp*std::cos(theta);
+        const amrex::ParticleReal vz = vparallel*std::cos(theta) - vperp*std::sin(theta);
+        const amrex::ParticleReal v2 = vx*vx + vz*vz;
 
-            WARPX_ALWAYS_ASSERT_WITH_MESSAGE(v2 < PhysConst::c2,
-                "Point source particle speed must remain below the speed of light.");
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(v2 < PhysConst::c2,
+            "Point source particle speed must remain below the speed of light.");
 
-            const amrex::Real gamma = 1._rt/std::sqrt(1._rt - v2/PhysConst::c2);
-            const amrex::ParticleReal x = aperture_x + vx*t;
-            const amrex::ParticleReal z = aperture_z + vz*t;
-            const amrex::ParticleReal ux = gamma*vx;
-            const amrex::ParticleReal uz = gamma*vz;
+        const amrex::ParticleReal gamma = 1._prt/std::sqrt(1._prt - v2/PhysConst::c2);
+        const amrex::ParticleReal x = aperture_x + vx*t;
+        const amrex::ParticleReal z = aperture_z + vz*t;
+        const amrex::ParticleReal ux = gamma*vx;
+        const amrex::ParticleReal uz = gamma*vz;
 
 #if defined(WARPX_DIM_3D)
-            CheckAndAddParticle(x, 0._prt, z, ux, 0._prt, uz, weight,
-                                particle_x, particle_y, particle_z,
-                                particle_ux, particle_uy, particle_uz,
-                                particle_w);
+        CheckAndAddParticle(x, 0._prt, z, ux, 0._prt, uz, weight,
+                            particle_x, particle_y, particle_z,
+                            particle_ux, particle_uy, particle_uz,
+                            particle_w);
 #elif defined(WARPX_DIM_XZ)
-            CheckAndAddParticle(x, 0._prt, z, ux, 0._prt, uz, weight,
-                                particle_x, particle_y, particle_z,
-                                particle_ux, particle_uy, particle_uz,
-                                particle_w);
+        CheckAndAddParticle(x, 0._prt, z, ux, 0._prt, uz, weight,
+                            particle_x, particle_y, particle_z,
+                            particle_ux, particle_uy, particle_uz,
+                            particle_w);
 #endif
-        }
     }
 
     auto const np = static_cast<long>(particle_z.size());
-    const amrex::Vector<ParticleReal> xp(particle_x.data(), particle_x.data() + np);
-    const amrex::Vector<ParticleReal> yp(particle_y.data(), particle_y.data() + np);
-    const amrex::Vector<ParticleReal> zp(particle_z.data(), particle_z.data() + np);
-    const amrex::Vector<ParticleReal> uxp(particle_ux.data(), particle_ux.data() + np);
-    const amrex::Vector<ParticleReal> uyp(particle_uy.data(), particle_uy.data() + np);
-    const amrex::Vector<ParticleReal> uzp(particle_uz.data(), particle_uz.data() + np);
+    const amrex::Vector<amrex::ParticleReal> xp(particle_x.data(), particle_x.data() + np);
+    const amrex::Vector<amrex::ParticleReal> yp(particle_y.data(), particle_y.data() + np);
+    const amrex::Vector<amrex::ParticleReal> zp(particle_z.data(), particle_z.data() + np);
+    const amrex::Vector<amrex::ParticleReal> uxp(particle_ux.data(), particle_ux.data() + np);
+    const amrex::Vector<amrex::ParticleReal> uyp(particle_uy.data(), particle_uy.data() + np);
+    const amrex::Vector<amrex::ParticleReal> uzp(particle_uz.data(), particle_uz.data() + np);
 
-    amrex::Vector<amrex::Vector<ParticleReal>> attr;
-    const amrex::Vector<ParticleReal> wp(particle_w.data(), particle_w.data() + np);
+    amrex::Vector<amrex::Vector<amrex::ParticleReal>> attr;
+    const amrex::Vector<amrex::ParticleReal> wp(particle_w.data(), particle_w.data() + np);
     attr.push_back(wp);
 
     const amrex::Vector<amrex::Vector<int>> attr_int;
