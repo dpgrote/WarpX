@@ -124,6 +124,18 @@ public:
     std::any m_openpmd_input_series;
 #endif
 
+    bool point_source = false;
+    long point_source_nparticles = 0;
+    amrex::Real point_source_width = 0.0;
+    amrex::Real point_source_height = 0.0;
+    amrex::Real point_source_aperture_z = 0.0;
+    amrex::Real point_source_p = 0.0;
+    amrex::Real point_source_vdrift = 0.0;
+    amrex::Real point_source_vparallelrms = 0.0;
+    amrex::Real point_source_vperprms = 0.0;
+    amrex::Real point_source_taucycle = 0.0;
+    amrex::ParticleReal point_source_weight = 1.0;
+
     amrex::Real surface_flux_pos; // surface location
     amrex::Real flux_tmin = -1.; // Time after which we start injecting particles
     amrex::Real flux_tmax = -1.; // Time after which we stop injecting particles
@@ -207,6 +219,7 @@ protected:
     void setupSingleParticle (amrex::ParmParse const& pp_species);
     void setupMultipleParticles (amrex::ParmParse const& pp_species);
     void setupGaussianBeam (amrex::ParmParse const& pp_species);
+    void setupPointSource (amrex::ParmParse const& pp_species);
     void setupNRandomPerCell (amrex::ParmParse const& pp_species);
     void setupNFluxPerCell (amrex::ParmParse const& pp_species);
     void setupNuniformPerCell (amrex::ParmParse const& pp_species);

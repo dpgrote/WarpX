@@ -1608,6 +1608,35 @@ Particle initialization
 
       * ``<species_name>.multiple_particles_weight`` (list of ``doubles``, macroparticle weights, i.e. number of physical particles each represents)
 
+    * ``point_source``: Inject particles generated from a point source that pass through an aperture,
+      following the algorithm in ``generate_particles.py``. This requires the additional parameters:
+
+      * ``<species_name>.numparticles`` (``integer``, number of macroparticles to generate)
+
+      * ``<species_name>.width`` (``double``, aperture width [meter])
+
+      * ``<species_name>.height`` (``double``, distance between the point source and the aperture [meter])
+
+      * ``<species_name>.aperture_z`` (``double``, optional, ``z`` location of the aperture plane [meter], default ``0.``)
+
+      * ``<species_name>.p`` (``double``, exponent in the angular distribution :math:`f(\theta) \propto \cos(\theta)^p`)
+
+      * ``<species_name>.vdrift`` (``double``, mean forward velocity [m/s])
+
+      * ``<species_name>.vparallelrms`` (``double``, RMS spread of the forward velocity [m/s])
+
+      * ``<species_name>.vperprms`` (``double``, RMS spread of the transverse velocity [m/s])
+
+      * ``<species_name>.taucycle`` (``double``, maximum propagation time sampled uniformly in ``[0, taucycle)`` [s])
+
+      There is one optional parameter:
+
+      * ``<species_name>.point_source_weight`` (``double``, default ``1.``, macroparticle weight)
+
+      This initialization is currently implemented for Cartesian ``XZ`` and ``3D`` geometries. In ``3D``,
+      the generated distribution is placed in the ``x-z`` plane with ``y = 0`` and ``u_y = 0``.
+      Boosted-frame simulations are not supported yet for this injection style.
+
     * ``gaussian_beam``: Inject particle beam with gaussian distribution in
       space in all directions. This requires additional parameters:
 

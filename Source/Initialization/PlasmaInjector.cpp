@@ -138,6 +138,9 @@ PlasmaInjector::PlasmaInjector (int ispecies, const std::string& name,
     } else if (injection_style == "multipleparticles") {
         setupMultipleParticles(pp_species);
         return;
+    } else if (injection_style == "point_source") {
+        setupPointSource(pp_species);
+        return;
     } else if (injection_style == "gaussian_beam") {
         setupGaussianBeam(pp_species);
     } else if (injection_style == "nrandompercell") {
@@ -291,6 +294,33 @@ void PlasmaInjector::setupGaussianBeam (amrex::ParmParse const& pp_species)
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE( !do_rotation && !do_rotation_momenta,
         "Error: Gaussian beam cannot be rotated in 1D, RCYLINDER, RSPHERE, and RZ geometries.");
 #endif
+}
+
+void PlasmaInjector::setupPointSource (amrex::ParmParse const& pp_species)
+{
+    utils::parser::getWithParser(pp_species, source_name, "numparticles", point_source_nparticles);
+    utils::parser::getWithParser(pp_species, source_name, "width", point_source_width);
+    utils::parser::getWithParser(pp_species, source_name, "height", point_source_height);
+    utils::parser::queryWithParser(pp_species, source_name, "aperture_z", point_source_aperture_z);
+    utils::parser::getWithParser(pp_species, source_name, "p", point_source_p);
+    utils::parser::getWithParser(pp_species, source_name, "vdrift", point_source_vdrift);
+    utils::parser::getWithParser(pp_species, source_name, "vparallelrms", point_source_vparallelrms);
+    utils::parser::getWithParser(pp_species, source_name, "vperprms", point_source_vperprms);
+    utils::parser::getWithParser(pp_species, source_name, "taucycle", point_source_taucycle);
+    utils::parser::queryWithParser(pp_species, source_name, "point_source_weight", point_source_weight);
+
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_nparticles >= 0,
+        "Error: numparticles must be non-negative for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_width > 0._rt,
+        "Error: width must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_height > 0._rt,
+        "Error: height must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_taucycle >= 0._rt,
+        "Error: taucycle must be non-negative for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_weight > 0._prt,
+        "Error: point_source_weight must be strictly positive for point_source injection.");
+
+    point_source = true;
 }
 
 void PlasmaInjector::setupNRandomPerCell (amrex::ParmParse const& pp_species)

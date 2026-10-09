@@ -4,6 +4,7 @@ foreach(D IN LISTS WarpX_DIMS)
       PRIVATE
         AddParticles.cpp
         AddPlasmaUtilities.cpp
+        PointSource.cpp
         SmartUtils.cpp
     )
 endforeach()

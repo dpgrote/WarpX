@@ -118,6 +118,9 @@ namespace
             std::vector<int> multiple_particles_pos_x;
             utils::parser::getArrWithParser(pp_spec, "multiple_particles_pos_x", multiple_particles_pos_x);
             nppc = multiple_particles_pos_x.size();
+        } else if (injection_style == "point_source") {
+            // TODO: hard to estimate well
+            nppc = 1;
         } else if (injection_style == "gaussian_beam") {
             // TODO: hard to estimate well
             // Possible way: take the npart parameter, normalize by rms scale to nppc via cell size on level 0.

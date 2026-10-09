@@ -247,6 +247,10 @@ PhysicalParticleContainer::AddParticles (int lev)
             AddGaussianBeam(*plasma_injector);
         }
 
+        if (plasma_injector->point_source) {
+            AddPointSource(*plasma_injector);
+        }
+
         if (plasma_injector->external_file) {
             AddPlasmaFromFile(*plasma_injector,
                               plasma_injector->q_tot,
