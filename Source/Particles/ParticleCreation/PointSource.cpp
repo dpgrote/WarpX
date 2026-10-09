@@ -135,6 +135,8 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
     const amrex::ParticleReal vdrift = plasma_injector.point_source_vdrift;
     const amrex::ParticleReal vparallelrms = plasma_injector.point_source_vparallelrms;
     const amrex::ParticleReal vperprms = plasma_injector.point_source_vperprms;
+    const amrex::ParticleReal initial_vparallelrms = plasma_injector.point_source_initial_vparallelrms;
+    const amrex::ParticleReal initial_vperprms = plasma_injector.point_source_initial_vperprms;
     const amrex::ParticleReal taucycle = plasma_injector.point_source_taucycle;
     const amrex::ParticleReal weight = plasma_injector.point_source_weight;
 
@@ -160,19 +162,30 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
         const amrex::ParticleReal t = amrex::Random()*taucycle;
         const amrex::ParticleReal aperture_x = sample_aperture_position(amrex::Random(), width, cdf);
         const amrex::ParticleReal theta = std::atan2(aperture_x, height);
-        const amrex::ParticleReal vparallel = vdrift + amrex::RandomNormal(0._prt, vparallelrms);
-        const amrex::ParticleReal vperp = amrex::RandomNormal(0._prt, vperprms);
+        const amrex::ParticleReal position_vparallel = vdrift + amrex::RandomNormal(0._prt, vparallelrms);
+        const amrex::ParticleReal position_vperp = amrex::RandomNormal(0._prt, vperprms);
+        const amrex::ParticleReal initial_vparallel = vdrift + amrex::RandomNormal(0._prt, initial_vparallelrms);
+        const amrex::ParticleReal initial_vperp = amrex::RandomNormal(0._prt, initial_vperprms);
 
-        const amrex::ParticleReal vx = vparallel*std::sin(theta) + vperp*std::cos(theta);
-        const amrex::ParticleReal vz = vparallel*std::cos(theta) - vperp*std::sin(theta);
+        const amrex::ParticleReal position_vx = position_vparallel*std::sin(theta) +
+            position_vperp*std::cos(theta);
+        const amrex::ParticleReal position_vz = position_vparallel*std::cos(theta) -
+            position_vperp*std::sin(theta);
+        const amrex::ParticleReal vx = initial_vparallel*std::sin(theta) +
+            initial_vperp*std::cos(theta);
+        const amrex::ParticleReal vz = initial_vparallel*std::cos(theta) -
+            initial_vperp*std::sin(theta);
+        const amrex::ParticleReal position_v2 = position_vx*position_vx + position_vz*position_vz;
         const amrex::ParticleReal v2 = vx*vx + vz*vz;
 
+        WARPX_ALWAYS_ASSERT_WITH_MESSAGE(position_v2 < PhysConst::c2,
+            "Point source placement speed must remain below the speed of light.");
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(v2 < PhysConst::c2,
             "Point source particle speed must remain below the speed of light.");
 
         const amrex::ParticleReal gamma = 1._prt/std::sqrt(1._prt - v2/PhysConst::c2);
-        const amrex::ParticleReal x = aperture_x + vx*t;
-        const amrex::ParticleReal z = aperture_z + vz*t;
+        const amrex::ParticleReal x = aperture_x + position_vx*t;
+        const amrex::ParticleReal z = aperture_z + position_vz*t;
         const amrex::ParticleReal ux = gamma*vx;
         const amrex::ParticleReal uz = gamma*vz;
 

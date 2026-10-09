@@ -133,6 +133,8 @@ public:
     amrex::ParticleReal point_source_vdrift = 0.0;
     amrex::ParticleReal point_source_vparallelrms = 0.0;
     amrex::ParticleReal point_source_vperprms = 0.0;
+    amrex::ParticleReal point_source_initial_vparallelrms = 0.0;
+    amrex::ParticleReal point_source_initial_vperprms = 0.0;
     amrex::ParticleReal point_source_taucycle = 0.0;
     amrex::ParticleReal point_source_weight = 1.0;
 

@@ -306,6 +306,12 @@ void PlasmaInjector::setupPointSource (amrex::ParmParse const& pp_species)
     utils::parser::getWithParser(pp_species, source_name, "vdrift", point_source_vdrift);
     utils::parser::getWithParser(pp_species, source_name, "vparallelrms", point_source_vparallelrms);
     utils::parser::getWithParser(pp_species, source_name, "vperprms", point_source_vperprms);
+    point_source_initial_vparallelrms = point_source_vparallelrms;
+    point_source_initial_vperprms = point_source_vperprms;
+    utils::parser::queryWithParser(pp_species, source_name,
+                                   "initial_vparallelrms", point_source_initial_vparallelrms);
+    utils::parser::queryWithParser(pp_species, source_name,
+                                   "initial_vperprms", point_source_initial_vperprms);
     utils::parser::getWithParser(pp_species, source_name, "taucycle", point_source_taucycle);
     utils::parser::queryWithParser(pp_species, source_name, "point_source_weight", point_source_weight);
 

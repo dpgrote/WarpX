@@ -1627,6 +1627,15 @@ Particle initialization
 
       * ``<species_name>.vperprms`` (``double``, RMS spread of the transverse velocity [m/s])
 
+      There are two optional parameters to decouple the sampled propagation velocity used to place the
+      particle from the initialized particle velocity:
+
+      * ``<species_name>.initial_vparallelrms`` (``double``, default ``<species_name>.vparallelrms``,
+        RMS spread of the forward velocity used to set the particle momentum [m/s])
+
+      * ``<species_name>.initial_vperprms`` (``double``, default ``<species_name>.vperprms``,
+        RMS spread of the transverse velocity used to set the particle momentum [m/s])
+
       * ``<species_name>.taucycle`` (``double``, maximum propagation time sampled uniformly in ``[0, taucycle)`` [s])
 
       There is one optional parameter:
