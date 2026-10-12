@@ -1611,7 +1611,7 @@ Particle initialization
     * ``point_source``: Inject particles generated from a point source that pass through an aperture,
       following the algorithm in ``generate_particles.py``. This requires the additional parameters:
 
-      * ``<species_name>.density`` (``float``) number density at the aperture
+      * ``<species_name>.density`` (``float``) max number density at the aperture
 
       * ``<species_name>.Nppc`` (``float``) approximate number of macroparticles per cell
 
