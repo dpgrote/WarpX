@@ -298,7 +298,8 @@ void PlasmaInjector::setupGaussianBeam (amrex::ParmParse const& pp_species)
 
 void PlasmaInjector::setupPointSource (amrex::ParmParse const& pp_species)
 {
-    utils::parser::getWithParser(pp_species, source_name, "numparticles", point_source_nparticles);
+    utils::parser::getWithParser(pp_species, source_name, "density", point_source_density);
+    utils::parser::getWithParser(pp_species, source_name, "Nppc", point_source_nppc);
     utils::parser::getWithParser(pp_species, source_name, "width", point_source_width);
     utils::parser::getWithParser(pp_species, source_name, "height", point_source_height);
     utils::parser::queryWithParser(pp_species, source_name, "aperture_z", point_source_aperture_z);
@@ -313,18 +314,27 @@ void PlasmaInjector::setupPointSource (amrex::ParmParse const& pp_species)
     utils::parser::queryWithParser(pp_species, source_name,
                                    "initial_vperprms", point_source_initial_vperprms);
     utils::parser::getWithParser(pp_species, source_name, "taucycle", point_source_taucycle);
-    utils::parser::queryWithParser(pp_species, source_name, "point_source_weight", point_source_weight);
 
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_nparticles >= 0,
-        "Error: numparticles must be non-negative for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_density > 0._prt,
+        "Error: density must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_nppc > 0._prt,
+        "Error: Nppc must be strictly positive for point_source injection.");
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_width > 0._rt,
         "Error: width must be strictly positive for point_source injection.");
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_height > 0._rt,
         "Error: height must be strictly positive for point_source injection.");
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_taucycle >= 0._rt,
-        "Error: taucycle must be non-negative for point_source injection.");
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_weight > 0._prt,
-        "Error: point_source_weight must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_vdrift > 0._prt,
+        "Error: vdrift must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_vparallelrms > 0._prt,
+        "Error: vparallelrms must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_vperprms > 0._prt,
+        "Error: vperprms must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_initial_vparallelrms > 0._prt,
+        "Error: initial_vparallelrms must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_initial_vperprms > 0._prt,
+        "Error: initial_vperprms must be strictly positive for point_source injection.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(point_source_taucycle > 0._rt,
+        "Error: taucycle must be strictly positive for point_source injection.");
 
     point_source = true;
 }

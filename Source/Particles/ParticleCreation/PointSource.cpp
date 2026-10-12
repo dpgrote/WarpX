@@ -32,7 +32,8 @@ namespace
         long nparticles,
         amrex::ParticleReal width,
         amrex::ParticleReal height,
-        amrex::ParticleReal p)
+        amrex::ParticleReal p,
+        amrex::ParticleReal& profile_integral)
     {
         using namespace amrex::literals;
 
@@ -59,6 +60,8 @@ namespace
 
         WARPX_ALWAYS_ASSERT_WITH_MESSAGE(cdf.back() > 0._prt,
             "Point source CDF normalization must be strictly positive.");
+
+        profile_integral = cdf.back();
 
         for (auto& val : cdf) {
             val /= cdf.back();
@@ -112,17 +115,6 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
     WARPX_ABORT_WITH_MESSAGE(
         "point_source injection is currently supported only in Cartesian XZ and 3D geometries.");
 #else
-    const long nparticles = plasma_injector.point_source_nparticles;
-    if (nparticles == 0) {
-        return;
-    }
-
-    const int nprocs = amrex::ParallelDescriptor::NProcs();
-    const int myproc = amrex::ParallelDescriptor::MyProc();
-    const long base_nparticles = nparticles / nprocs;
-    const long remainder = nparticles % nprocs;
-    const long local_nparticles = base_nparticles + (myproc < remainder ? 1 : 0);
-
     if (WarpX::gamma_boost > 1._prt) {
         WARPX_ABORT_WITH_MESSAGE(
             "point_source injection is not yet implemented for boosted-frame simulations.");
@@ -138,7 +130,40 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
     const amrex::ParticleReal initial_vparallelrms = plasma_injector.point_source_initial_vparallelrms;
     const amrex::ParticleReal initial_vperprms = plasma_injector.point_source_initial_vperprms;
     const amrex::ParticleReal taucycle = plasma_injector.point_source_taucycle;
-    const amrex::ParticleReal weight = plasma_injector.point_source_weight;
+    const amrex::ParticleReal density = plasma_injector.point_source_density;
+    const amrex::ParticleReal nppc = plasma_injector.point_source_nppc;
+
+    const std::array<amrex::Real,3>& dx = WarpX::CellSize(0);
+    const amrex::ParticleReal cell_measure = dx[0]*dx[2];
+    amrex::ParticleReal profile_integral = 0._prt;
+    const amrex::Vector<amrex::ParticleReal> cdf =
+        build_point_source_cdf(1, width, height, p, profile_integral);
+    const amrex::ParticleReal nreal_total = density*profile_integral*vdrift*taucycle;
+    const amrex::ParticleReal weight = density*cell_measure/nppc;
+    amrex::Print() << "dx " << dx[0] << " " << dx[1] << " " << dx[2] << "\n";
+
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(cell_measure > 0._prt,
+        "Point source effective cell measure must be strictly positive.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(weight > 0._prt,
+        "Point source particle weight must be strictly positive.");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(nreal_total > 0._prt,
+        "Point source total number of real particles must be strictly positive.");
+
+    const amrex::ParticleReal nparticles_real = nreal_total/weight;
+    amrex::Print() << "DDDD " << nreal_total << " " << weight << " " << nparticles_real << "\n";
+    const long nparticles = std::max(0L, static_cast<long>(std::llround(nparticles_real)));
+    if (nparticles == 0) {
+        return;
+    }
+
+    const amrex::Vector<amrex::ParticleReal> sampling_cdf =
+        build_point_source_cdf(nparticles, width, height, p, profile_integral);
+
+    const int nprocs = amrex::ParallelDescriptor::NProcs();
+    const int myproc = amrex::ParallelDescriptor::MyProc();
+    const long base_nparticles = nparticles / nprocs;
+    const long remainder = nparticles % nprocs;
+    const long local_nparticles = base_nparticles + (myproc < remainder ? 1 : 0);
 
     amrex::Gpu::HostVector<amrex::ParticleReal> particle_x;
     amrex::Gpu::HostVector<amrex::ParticleReal> particle_y;
@@ -156,11 +181,9 @@ PhysicalParticleContainer::AddPointSource (PlasmaInjector const& plasma_injector
     particle_uz.reserve(local_nparticles);
     particle_w.reserve(local_nparticles);
 
-    const amrex::Vector<amrex::ParticleReal> cdf = build_point_source_cdf(nparticles, width, height, p);
-
     for (long i = 0; i < local_nparticles; ++i) {
         const amrex::ParticleReal t = amrex::Random()*taucycle;
-        const amrex::ParticleReal aperture_x = sample_aperture_position(amrex::Random(), width, cdf);
+        const amrex::ParticleReal aperture_x = sample_aperture_position(amrex::Random(), width, sampling_cdf);
         const amrex::ParticleReal theta = std::atan2(aperture_x, height);
         const amrex::ParticleReal position_vparallel = vdrift + amrex::RandomNormal(0._prt, vparallelrms);
         const amrex::ParticleReal position_vperp = amrex::RandomNormal(0._prt, vperprms);

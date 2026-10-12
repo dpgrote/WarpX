@@ -1611,36 +1611,40 @@ Particle initialization
     * ``point_source``: Inject particles generated from a point source that pass through an aperture,
       following the algorithm in ``generate_particles.py``. This requires the additional parameters:
 
-      * ``<species_name>.numparticles`` (``integer``, number of macroparticles to generate)
+      * ``<species_name>.density`` (``float``) number density at the aperture
 
-      * ``<species_name>.width`` (``double``, aperture width [meter])
+      * ``<species_name>.Nppc`` (``float``) approximate number of macroparticles per cell
 
-      * ``<species_name>.height`` (``double``, distance between the point source and the aperture [meter])
+      * ``<species_name>.width`` (``float``) aperture width [meter]
 
-      * ``<species_name>.aperture_z`` (``double``, optional, ``z`` location of the aperture plane [meter], default ``0.``)
+      * ``<species_name>.height`` (``float``) distance between the point source and the aperture [meter]
 
-      * ``<species_name>.p`` (``double``, exponent in the angular distribution :math:`f(\theta) \propto \cos(\theta)^p`)
+      * ``<species_name>.aperture_z`` (``float``) optional, ``z`` location of the aperture plane [meter], default ``0.``
 
-      * ``<species_name>.vdrift`` (``double``, mean forward velocity [m/s])
+      * ``<species_name>.p`` (``float``) exponent in the angular distribution :math:`f(\theta) \propto \cos(\theta)^p`
 
-      * ``<species_name>.vparallelrms`` (``double``, RMS spread of the forward velocity [m/s])
+      * ``<species_name>.vdrift`` (``float``) mean forward velocity [m/s]
 
-      * ``<species_name>.vperprms`` (``double``, RMS spread of the transverse velocity [m/s])
+      * ``<species_name>.vparallelrms`` (``float``) RMS spread of the forward velocity [m/s]
+
+      * ``<species_name>.vperprms`` (``float``) RMS spread of the transverse velocity [m/s]
 
       There are two optional parameters to decouple the sampled propagation velocity used to place the
       particle from the initialized particle velocity:
 
-      * ``<species_name>.initial_vparallelrms`` (``double``, default ``<species_name>.vparallelrms``,
-        RMS spread of the forward velocity used to set the particle momentum [m/s])
+      * ``<species_name>.initial_vparallelrms`` (``float``) default ``<species_name>.vparallelrms``,
+        RMS spread of the forward velocity used to set the particle momentum [m/s]
 
-      * ``<species_name>.initial_vperprms`` (``double``, default ``<species_name>.vperprms``,
-        RMS spread of the transverse velocity used to set the particle momentum [m/s])
+      * ``<species_name>.initial_vperprms`` (``float``) default ``<species_name>.vperprms``,
+        RMS spread of the transverse velocity used to set the particle momentum [m/s]
 
-      * ``<species_name>.taucycle`` (``double``, maximum propagation time sampled uniformly in ``[0, taucycle)`` [s])
+      * ``<species_name>.taucycle`` (``float``) maximum propagation time sampled uniformly in ``[0, taucycle)`` [s]
 
-      There is one optional parameter:
-
-      * ``<species_name>.point_source_weight`` (``double``, default ``1.``, macroparticle weight)
+      The particle weight is computed as :math:`w = n dV / N_{ppc}`, where :math:`n` is
+      ``<species_name>.density`` and :math:`dV` is the effective cell measure in the ``x-z`` plane.
+      The number of macroparticles is then computed from the total number of real particles in the
+      source region, approximated as the integral of :math:`n\cos(\theta)^p` across the aperture width
+      times :math:`v_{\mathrm{drift}}\tau_{\mathrm{cycle}}`.
 
       This initialization is currently implemented for Cartesian ``XZ`` and ``3D`` geometries. In ``3D``,
       the generated distribution is placed in the ``x-z`` plane with ``y = 0`` and ``u_y = 0``.
