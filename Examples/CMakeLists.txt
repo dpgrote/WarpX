@@ -25,6 +25,39 @@ endif()
 # checksum: default regression analysis command (checksum benchmark)
 # dependency: name of base test that must run first
 #
+function(warpx_generate_test_driver out_var name stage working_dir)
+    set(_driver_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/test_drivers")
+    file(MAKE_DIRECTORY "${_driver_dir}")
+
+    set(_driver "${_driver_dir}/${name}.${stage}.cmake")
+    set(_test_command ${ARGN})
+    set(_driver_content [=[
+set(_workdir [==[@working_dir@]==])
+set(_command [==[@_test_command@]==])
+
+file(MAKE_DIRECTORY "${_workdir}")
+
+execute_process(
+    COMMAND ${_command}
+    WORKING_DIRECTORY "${_workdir}"
+    COMMAND_ECHO STDOUT
+    RESULT_VARIABLE _result
+)
+
+if(NOT _result EQUAL 0)
+    message(FATAL_ERROR "Test command failed with exit code ${_result}")
+endif()
+]=])
+    string(CONFIGURE "${_driver_content}" _driver_content @ONLY)
+
+    file(GENERATE
+        OUTPUT "${_driver}"
+        CONTENT "${_driver_content}"
+    )
+
+    set(${out_var} "${_driver}" PARENT_SCOPE)
+endfunction()
+
 function(add_warpx_test
     name
     dims
@@ -52,8 +85,7 @@ function(add_warpx_test
     # set dimension suffix
     warpx_set_suffix_dims(SD ${dims})
 
-    # make a unique run directory
-    file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name})
+    # set a unique run directory; create it lazily at test runtime
     set(THIS_WORKING_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name})
 
     # get input file/script and optional command-line arguments
@@ -132,14 +164,19 @@ function(add_warpx_test
     if(python)
         # for argparse, do not pass command-line arguments as one quoted string
         separate_arguments(INPUTS_ARGS UNIX_COMMAND "${INPUTS_ARGS}")
+        warpx_generate_test_driver(
+            RUN_TEST_DRIVER
+            ${name}
+            run
+            "${THIS_WORKING_DIR}"
+            ${THIS_MPI_TEST_EXE}
+            ${THIS_Python_EXE}
+            ${INPUTS_FILE}
+            ${INPUTS_ARGS}
+        )
         add_test(
             NAME ${name}.run
-            COMMAND
-                ${THIS_MPI_TEST_EXE}
-                ${THIS_Python_EXE}
-                ${INPUTS_FILE}
-                ${INPUTS_ARGS}
-            WORKING_DIRECTORY ${THIS_WORKING_DIR}
+            COMMAND ${CMAKE_COMMAND} -P ${RUN_TEST_DRIVER}
         )
         # FIXME Use helper function to handle Windows exceptions
         set_property(TEST ${name}.run APPEND PROPERTY ENVIRONMENT "PYTHONPATH=$ENV{PYTHONPATH}:${CMAKE_PYTHON_OUTPUT_DIRECTORY}")
@@ -168,16 +205,21 @@ function(add_warpx_test
         if(WarpX_TEST_DEBUGGER)
             set(runtime_params_fpetrap "amrex.signal_handling = 0")
         endif()
+        warpx_generate_test_driver(
+            RUN_TEST_DRIVER
+            ${name}
+            run
+            "${THIS_WORKING_DIR}"
+            ${THIS_MPI_TEST_EXE}
+            $<TARGET_FILE:app_${SD}>
+            ${INPUTS_FILE}
+            ${runtime_params}
+            ${runtime_params_fpetrap}
+            ${INPUTS_ARGS}
+        )
         add_test(
             NAME ${name}.run
-            COMMAND
-                ${THIS_MPI_TEST_EXE}
-                $<TARGET_FILE:app_${SD}>
-                ${INPUTS_FILE}
-                ${runtime_params}
-                ${runtime_params_fpetrap}
-                ${INPUTS_ARGS}
-            WORKING_DIRECTORY ${THIS_WORKING_DIR}
+            COMMAND ${CMAKE_COMMAND} -P ${RUN_TEST_DRIVER}
         )
     endif()
 
@@ -201,13 +243,18 @@ function(add_warpx_test
     if(analysis)
         # for argparse, do not pass command-line arguments as one quoted string
         separate_arguments(ANALYSIS_ARGS UNIX_COMMAND "${ANALYSIS_ARGS}")
+        warpx_generate_test_driver(
+            ANALYSIS_TEST_DRIVER
+            ${name}
+            analysis
+            "${THIS_WORKING_DIR}"
+            ${Python_EXECUTABLE}
+            ${ANALYSIS_FILE}
+            ${ANALYSIS_ARGS}
+        )
         add_test(
             NAME ${name}.analysis
-            COMMAND
-                ${Python_EXECUTABLE}
-                ${ANALYSIS_FILE}
-                ${ANALYSIS_ARGS}
-            WORKING_DIRECTORY ${THIS_WORKING_DIR}
+            COMMAND ${CMAKE_COMMAND} -P ${ANALYSIS_TEST_DRIVER}
         )
         # test analysis depends on test run
         set_property(TEST ${name}.analysis APPEND PROPERTY DEPENDS "${name}.run")
@@ -224,13 +271,18 @@ function(add_warpx_test
     if(checksum)
         # for argparse, do not pass command-line arguments as one quoted string
         separate_arguments(CHECKSUM_ARGS UNIX_COMMAND "${CHECKSUM_ARGS}")
+        warpx_generate_test_driver(
+            CHECKSUM_TEST_DRIVER
+            ${name}
+            checksum
+            "${THIS_WORKING_DIR}"
+            ${Python_EXECUTABLE}
+            ${CHECKSUM_FILE}
+            ${CHECKSUM_ARGS}
+        )
         add_test(
             NAME ${name}.checksum
-            COMMAND
-                ${Python_EXECUTABLE}
-                ${CHECKSUM_FILE}
-                ${CHECKSUM_ARGS}
-            WORKING_DIRECTORY ${THIS_WORKING_DIR}
+            COMMAND ${CMAKE_COMMAND} -P ${CHECKSUM_TEST_DRIVER}
         )
         # test analysis depends on test run
         set_property(TEST ${name}.checksum APPEND PROPERTY DEPENDS "${name}.run")
