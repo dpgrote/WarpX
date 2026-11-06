@@ -126,16 +126,29 @@ public:
                                            int bin_array[], int index_array[],
                                            const int cell_start, const int cell_stop ) const
         {
+            if (cell_stop == cell_start) { return; }
+            amrex::Real uxbar = 0.;
+            amrex::Real uybar = 0.;
+            amrex::Real uzbar = 0.;
+            for (int i = cell_start; i < cell_stop; ++i)
+            {
+                uxbar += ux[indices[i]];
+                uybar += uy[indices[i]];
+                uzbar += uz[indices[i]];
+            }
+            uxbar /= (cell_stop - cell_start);
+            uybar /= (cell_stop - cell_start);
+            uzbar /= (cell_stop - cell_start);
             for (int i = cell_start; i < cell_stop; ++i)
             {
                 // get polar components of the velocity vector
                 auto u_mag = std::sqrt(
-                    ux[indices[i]]*ux[indices[i]] +
-                    uy[indices[i]]*uy[indices[i]] +
-                    uz[indices[i]]*uz[indices[i]]
+                    (ux[indices[i]] - uxbar)*(ux[indices[i]] - uxbar) +
+                    (uy[indices[i]] - uybar)*(uy[indices[i]] - uybar) +
+                    (uz[indices[i]] - uzbar)*(uz[indices[i]] - uzbar)
                 );
-                auto u_theta = std::atan2(uy[indices[i]], ux[indices[i]]) + MathConst::pi;
-                auto u_phi = std::acos(uz[indices[i]]/u_mag);
+                auto u_theta = std::atan2(uy[indices[i]] - uybar, ux[indices[i]] - uxbar) + MathConst::pi;
+                auto u_phi = std::acos((uz[indices[i]] - uzbar)/u_mag);
 
                 const int ii = static_cast<int>(u_theta / dutheta);
                 const int jj = static_cast<int>(u_phi / duphi);
